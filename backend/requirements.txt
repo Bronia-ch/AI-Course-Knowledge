@@ -1,0 +1,15 @@
+# AI课程知识库 - 后端依赖
+# 安装方式：pip install -r requirements.txt
+
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+sqlalchemy>=2.0.0
+pydantic-settings>=2.0.0
+
+python-multipart>=0.0.9         # 文件上传支持
+aiofiles>=23.0.0                # 异步文件操作
+
+faster-whisper>=1.0.0           # 语音转文字
+openai>=1.0.0                   # DeepSeek API 调用（兼容 OpenAI SDK）
+
+# ===== 以下为后续阶段依赖（安装时请去掉注释） =====

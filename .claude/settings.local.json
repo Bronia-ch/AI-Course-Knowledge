@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('✅ package.json 格式正确'\\); console.log\\('项目名:', p.name\\); console.log\\('依赖数:', Object.keys\\(p.dependencies\\).length\\); console.log\\('开发依赖数:', Object.keys\\(p.devDependencies\\).length\\);\")"
+    ]
+  }
+}
