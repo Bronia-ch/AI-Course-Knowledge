@@ -25,3 +25,7 @@ dist/
 # 操作系统
 .DS_Store
 Thumbs.db
+
+# Version backups
+v1.0_complete/
+v1.1_learning_progress_complete/
