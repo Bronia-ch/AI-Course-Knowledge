@@ -10,9 +10,10 @@
   树查询使用 selectinload 预加载嵌套关系，避免 N+1 问题
 """
 
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session, selectinload
 
-from ..models.models import Course, Chapter, Lesson
+from ..models.models import Course, Chapter, Lesson, LessonProgress
 from ..schemas.course import (
     CourseCreate,
     CourseUpdate,
@@ -22,6 +23,38 @@ from ..schemas.course import (
     LessonUpdate,
 )
 
+LESSON_SUMMARY_RELATIONSHIPS = (
+    Lesson.transcripts,
+    Lesson.knowledge_points,
+    Lesson.projects,
+)
+
+
+def _lesson_summary_options():
+    """课节列表统计字段需要的关联加载配置。"""
+    return tuple(
+        selectinload(relationship)
+        for relationship in LESSON_SUMMARY_RELATIONSHIPS
+    )
+
+
+def _chapter_lesson_summary_options():
+    """章节详情中课节统计字段需要的关联加载配置。"""
+    return tuple(
+        selectinload(Chapter.lessons).selectinload(relationship)
+        for relationship in LESSON_SUMMARY_RELATIONSHIPS
+    )
+
+
+def _course_tree_summary_options():
+    """课程树中课节统计字段需要的关联加载配置。"""
+    return tuple(
+        selectinload(Course.chapters)
+        .selectinload(Chapter.lessons)
+        .selectinload(relationship)
+        for relationship in LESSON_SUMMARY_RELATIONSHIPS
+    )
+
 
 # =============================================================================
 # Course CRUD
@@ -29,6 +62,96 @@ from ..schemas.course import (
 def get_courses(db: Session) -> list[Course]:
     """获取所有课程，按创建时间倒序"""
     return db.query(Course).order_by(Course.created_at.desc()).all()
+
+
+def _get_learning_status(
+    total_lessons: int,
+    started_lessons: int,
+    completed_lessons: int,
+) -> str:
+    """根据课节汇总数据判定课程学习状态。"""
+    if total_lessons > 0 and completed_lessons == total_lessons:
+        return "completed"
+    if started_lessons > 0:
+        return "in_progress"
+    return "not_started"
+
+
+def get_courses_with_progress(db: Session) -> list[dict]:
+    """获取课程列表及学习进度汇总，未开始课节按 0% 计算。"""
+    progress_percent = func.coalesce(LessonProgress.progress_percent, 0.0)
+    rows = (
+        db.query(
+            Course,
+            func.count(Lesson.id).label("total_lessons"),
+            func.sum(
+                case((LessonProgress.id.is_not(None), 1), else_=0)
+            ).label("started_lessons"),
+            func.sum(
+                case((LessonProgress.progress_percent >= 100, 1), else_=0)
+            ).label("completed_lessons"),
+            func.coalesce(func.avg(progress_percent), 0.0).label(
+                "progress_percent"
+            ),
+            func.max(LessonProgress.updated_at).label("last_studied_at"),
+        )
+        .outerjoin(Chapter, Chapter.course_id == Course.id)
+        .outerjoin(Lesson, Lesson.chapter_id == Chapter.id)
+        .outerjoin(LessonProgress, LessonProgress.lesson_id == Lesson.id)
+        .group_by(Course.id)
+        .order_by(Course.created_at.desc())
+        .all()
+    )
+
+    # 一次性查询所有课程的学习记录，按更新时间倒序取每门课程第一条。
+    recent_rows = (
+        db.query(
+            Course.id.label("course_id"),
+            Lesson.id.label("lesson_id"),
+            Lesson.title.label("lesson_title"),
+            LessonProgress.current_time.label("current_time"),
+            LessonProgress.updated_at.label("updated_at"),
+        )
+        .join(Chapter, Chapter.course_id == Course.id)
+        .join(Lesson, Lesson.chapter_id == Chapter.id)
+        .join(LessonProgress, LessonProgress.lesson_id == Lesson.id)
+        .order_by(Course.id, LessonProgress.updated_at.desc())
+        .all()
+    )
+    recent_by_course = {}
+    for recent_row in recent_rows:
+        recent_by_course.setdefault(recent_row.course_id, recent_row)
+
+    result = []
+    for row in rows:
+        percent = min(max(float(row.progress_percent or 0), 0), 100)
+        total_lessons = int(row.total_lessons or 0)
+        started_lessons = int(row.started_lessons or 0)
+        completed_lessons = int(row.completed_lessons or 0)
+        learning_status = _get_learning_status(
+            total_lessons,
+            started_lessons,
+            completed_lessons,
+        )
+        recent = recent_by_course.get(row.Course.id)
+        result.append({
+            "id": row.Course.id,
+            "title": row.Course.title,
+            "description": row.Course.description,
+            "created_at": row.Course.created_at,
+            "total_lessons": total_lessons,
+            "started_lessons": started_lessons,
+            "completed_lessons": completed_lessons,
+            "progress_percent": round(percent, 1),
+            "learning_status": learning_status,
+            "last_studied_at": row.last_studied_at,
+            "last_lesson_id": recent.lesson_id if recent else None,
+            "last_lesson_title": recent.lesson_title if recent else None,
+            "last_lesson_current_time": float(recent.current_time or 0)
+            if recent
+            else 0.0,
+        })
+    return result
 
 
 def get_course(db: Session, course_id: int) -> Course | None:
@@ -41,9 +164,7 @@ def get_course_with_chapters(db: Session, course_id: int) -> Course | None:
     return (
         db.query(Course)
         .filter(Course.id == course_id)
-        .options(
-            selectinload(Course.chapters).selectinload(Chapter.lessons)
-        )
+        .options(selectinload(Course.chapters))
         .first()
     )
 
@@ -58,10 +179,7 @@ def get_course_tree(db: Session, course_id: int) -> Course | None:
     return (
         db.query(Course)
         .filter(Course.id == course_id)
-        .options(
-            selectinload(Course.chapters)
-            .selectinload(Chapter.lessons)
-        )
+        .options(*_course_tree_summary_options())
         .first()
     )
 
@@ -122,7 +240,7 @@ def get_chapter_with_lessons(db: Session, chapter_id: int) -> Chapter | None:
     return (
         db.query(Chapter)
         .filter(Chapter.id == chapter_id)
-        .options(selectinload(Chapter.lessons))
+        .options(*_chapter_lesson_summary_options())
         .first()
     )
 
@@ -167,6 +285,7 @@ def get_lessons_by_chapter(db: Session, chapter_id: int) -> list[Lesson]:
     return (
         db.query(Lesson)
         .filter(Lesson.chapter_id == chapter_id)
+        .options(*_lesson_summary_options())
         .order_by(Lesson.created_at.asc())
         .all()
     )

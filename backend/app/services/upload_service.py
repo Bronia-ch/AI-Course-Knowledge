@@ -11,18 +11,30 @@
 
 import os
 import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
+import av
 from fastapi import UploadFile
 
 from ..config import settings
 
 
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+UPLOAD_CHUNK_SIZE = 1024 * 1024
+
+
 # ===== 路径工具 =====
+def get_upload_root() -> Path:
+    """返回与应用启动目录无关的上传根目录。"""
+    root = Path(settings.UPLOAD_DIR)
+    return root.resolve() if root.is_absolute() else (BACKEND_DIR / root).resolve()
+
+
 def get_audio_dir(lesson_id: int) -> Path:
     """获取课节的音频存储目录"""
-    return Path(settings.UPLOAD_DIR) / "audio" / str(lesson_id)
+    return get_upload_root() / "audio" / str(lesson_id)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -39,9 +51,14 @@ def sanitize_filename(filename: str) -> str:
     return f"{safe_name}{ext}"
 
 
-def generate_stored_filename(original_filename: str) -> str:
+def generate_stored_filename(
+    original_filename: str,
+    normalized_extension: str | None = None,
+) -> str:
     """生成存储文件名：{uuid}_{清理后的原始名}，确保唯一性"""
     safe_name = sanitize_filename(original_filename)
+    if normalized_extension:
+        safe_name = f"{Path(safe_name).stem}{normalized_extension}"
     return f"{uuid.uuid4().hex}_{safe_name}"
 
 
@@ -77,6 +94,60 @@ def validate_file_size(file_size: int) -> None:
         raise ValueError(f"文件大小 {file_mb}MB 超过限制 {max_mb}MB")
 
 
+def _inspect_audio_source(source) -> tuple[str, str]:
+    """检测真实音频格式，返回规范扩展名和 MIME 类型。"""
+    try:
+        with av.open(source) as container:
+            if not any(stream.type == "audio" for stream in container.streams):
+                raise ValueError("文件中未检测到音频轨道")
+            if any(stream.type == "video" for stream in container.streams):
+                raise ValueError("不支持包含视频轨道的文件")
+            format_names = set(container.format.name.split(","))
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("无法识别音频文件的真实格式") from exc
+
+    format_mapping = (
+        ({"mp3"}, (".mp3", "audio/mpeg")),
+        ({"wav"}, (".wav", "audio/wav")),
+        ({"mov", "mp4", "m4a", "3gp", "3g2", "mj2"}, (".m4a", "audio/mp4")),
+        ({"ogg"}, (".ogg", "audio/ogg")),
+        ({"flac"}, (".flac", "audio/flac")),
+        ({"aac"}, (".aac", "audio/aac")),
+        ({"asf"}, (".wma", "audio/x-ms-wma")),
+    )
+    for known_formats, result in format_mapping:
+        if format_names & known_formats:
+            return result
+
+    raise ValueError(f"不支持的音频容器格式: {','.join(sorted(format_names))}")
+
+
+def inspect_audio_content(content: bytes) -> tuple[str, str]:
+    """兼容字节输入的真实音频检测。"""
+    return _inspect_audio_source(BytesIO(content))
+
+
+def inspect_audio_path(path: Path) -> tuple[str, str]:
+    """直接检查磁盘文件，避免把大音频整体载入内存。"""
+    return _inspect_audio_source(str(path))
+
+
+def get_media_type(filename: str) -> str:
+    """根据已规范化的文件扩展名返回 MIME 类型。"""
+    media_types = {
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".m4a": "audio/mp4",
+        ".ogg": "audio/ogg",
+        ".flac": "audio/flac",
+        ".aac": "audio/aac",
+        ".wma": "audio/x-ms-wma",
+    }
+    return media_types.get(Path(filename).suffix.lower(), "application/octet-stream")
+
+
 # ===== 文件操作 =====
 async def save_audio_file(lesson_id: int, file: UploadFile) -> tuple[str, str]:
     """
@@ -101,17 +172,28 @@ async def save_audio_file(lesson_id: int, file: UploadFile) -> tuple[str, str]:
     audio_dir = get_audio_dir(lesson_id)
     audio_dir.mkdir(parents=True, exist_ok=True)
 
-    stored_filename = generate_stored_filename(file.filename or "audio.mp3")
-    file_path = audio_dir / stored_filename
+    temp_path = audio_dir / f".{uuid.uuid4().hex}.upload"
+    total_size = 0
+    try:
+        with open(temp_path, "wb") as output:
+            while chunk := await file.read(UPLOAD_CHUNK_SIZE):
+                total_size += len(chunk)
+                validate_file_size(total_size)
+                output.write(chunk)
+        if total_size == 0:
+            raise ValueError("上传的音频文件为空")
 
-    # 分块写入，避免大文件撑爆内存
-    content = await file.read()
-    validate_file_size(len(content))
-
-    with open(file_path, "wb") as f:
-        f.write(content)
-
-    return stored_filename, str(audio_dir.relative_to(settings.UPLOAD_DIR))
+        normalized_extension, _ = inspect_audio_path(temp_path)
+        stored_filename = generate_stored_filename(
+            file.filename or "audio.mp3",
+            normalized_extension,
+        )
+        file_path = audio_dir / stored_filename
+        temp_path.replace(file_path)
+        return stored_filename, str(audio_dir.relative_to(get_upload_root()))
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
 
 
 def delete_audio_file(lesson_id: int, filename: Optional[str] = None) -> bool:
@@ -174,9 +256,10 @@ def get_audio_info(lesson_id: int, audio_filename: Optional[str] = None) -> dict
         return {
             "lesson_id": lesson_id,
             "file_name": audio_filename,
-            "file_path": str(Path("audio") / str(lesson_id) / audio_filename),
+            "file_path": (Path("audio") / str(lesson_id) / audio_filename).as_posix(),
             "file_size": 0,
             "file_extension": os.path.splitext(audio_filename)[1].lower(),
+            "media_type": get_media_type(audio_filename),
             "exists": False,
         }
 
@@ -184,9 +267,10 @@ def get_audio_info(lesson_id: int, audio_filename: Optional[str] = None) -> dict
     return {
         "lesson_id": lesson_id,
         "file_name": audio_filename,
-        "file_path": str(Path("audio") / str(lesson_id) / audio_filename),
+        "file_path": (Path("audio") / str(lesson_id) / audio_filename).as_posix(),
         "file_size": stat.st_size,
         "file_extension": os.path.splitext(audio_filename)[1].lower(),
+        "media_type": get_media_type(audio_filename),
         "exists": True,
     }
 

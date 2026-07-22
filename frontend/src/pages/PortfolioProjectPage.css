@@ -1,0 +1,347 @@
+.portfolio-project-page {
+  padding-bottom: 48px;
+}
+
+.portfolio-project-hero {
+  position: relative;
+  margin-bottom: 18px;
+  padding: 24px;
+  color: #fff;
+  background: linear-gradient(135deg, #4e5fc7, #7586e8);
+  border-radius: 14px;
+}
+
+.portfolio-project-links {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  display: flex;
+  gap: 7px;
+}
+
+.portfolio-project-links a {
+  padding: 7px 11px;
+  color: #fff;
+  font-size: 0.78rem;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 7px;
+}
+
+.portfolio-completeness {
+  margin-bottom: 14px;
+}
+
+.portfolio-completeness > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.portfolio-completeness h2 {
+  color: #444;
+  font-size: 1rem;
+}
+
+.portfolio-completeness > div:first-child strong {
+  color: #5268cf;
+  font-size: 1.25rem;
+}
+
+.portfolio-completeness-track {
+  height: 8px;
+  margin: 10px 0;
+  overflow: hidden;
+  background: #edf0f7;
+  border-radius: 999px;
+}
+
+.portfolio-completeness-track span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #34c759);
+  border-radius: inherit;
+}
+
+.portfolio-completeness p {
+  color: #777;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.portfolio-project-hero h1 {
+  margin: 10px 0 8px;
+  font-size: 1.6rem;
+}
+
+.portfolio-project-hero p {
+  max-width: 760px;
+  line-height: 1.7;
+}
+
+.portfolio-project-source-lessons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+  color: #d9def6;
+  font-size: 0.75rem;
+}
+
+.portfolio-project-source-lessons b {
+  padding: 3px 7px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+}
+
+.portfolio-project-hero small {
+  display: block;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.portfolio-project-progress {
+  max-width: 460px;
+  margin-top: 18px;
+}
+
+.portfolio-project-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.76rem;
+}
+
+.portfolio-project-progress-track {
+  height: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+.portfolio-project-progress-track span {
+  display: block;
+  height: 100%;
+  background: #fff;
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.implementation-status-note {
+  margin-bottom: 14px;
+  border-left: 4px solid #5268cf;
+}
+
+.implementation-status-note > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.implementation-status-note span {
+  color: #5268cf;
+  font-size: .66rem;
+  letter-spacing: .1em;
+}
+
+.implementation-status-note strong {
+  padding: 4px 9px;
+  color: #8a641b;
+  font-size: .74rem;
+  background: #fff4d8;
+  border-radius: 999px;
+}
+
+.implementation-status-note.verified strong {
+  color: #257049;
+  background: #e1f5e8;
+}
+
+.implementation-status-note p,
+.implementation-status-note small {
+  display: block;
+  margin-top: 8px;
+  color: #687087;
+  font-size: .8rem;
+  line-height: 1.7;
+}
+
+.portfolio-project-badges {
+  display: flex;
+  gap: 7px;
+}
+
+.portfolio-project-badges span,
+.portfolio-project-badges strong {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.portfolio-project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.portfolio-project-grid .card {
+  margin: 0;
+}
+
+.portfolio-project-section {
+  margin-bottom: 14px;
+}
+
+.portfolio-project-section h2,
+.portfolio-project-grid h2 {
+  margin-bottom: 10px;
+  color: #444;
+  font-size: 1rem;
+}
+
+.portfolio-project-section p,
+.portfolio-project-grid p,
+.portfolio-project-section li {
+  color: #666;
+  font-size: 0.84rem;
+  line-height: 1.7;
+}
+
+.portfolio-project-section ul {
+  margin-left: 19px;
+}
+
+.portfolio-project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.portfolio-project-tags span {
+  padding: 5px 9px;
+  color: #5268cf;
+  font-size: 0.76rem;
+  background: #eef0ff;
+  border-radius: 6px;
+}
+
+.portfolio-project-tags.knowledge span {
+  color: #287344;
+  background: #eaf8ef;
+}
+
+.portfolio-project-tasks {
+  display: grid;
+  gap: 10px;
+  margin-left: 24px;
+}
+
+.portfolio-project-tasks li {
+  padding: 12px 14px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.portfolio-project-tasks li > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.portfolio-project-tasks li span {
+  color: #999;
+  font-size: 0.7rem;
+}
+
+.portfolio-project-tasks li .task-status {
+  padding: 3px 8px;
+  background: #eee;
+  border-radius: 999px;
+}
+
+.portfolio-project-tasks li .task-status.in_progress {
+  color: #5268cf;
+  background: #eef0ff;
+}
+
+.portfolio-project-tasks li .task-status.completed {
+  color: #238b45;
+  background: #e9f8ee;
+}
+
+.portfolio-project-tasks li .task-status.verified {
+  color: #238b45;
+  background: #e9f8ee;
+}
+
+.portfolio-project-tasks li .task-status.partial {
+  color: #a56412;
+  background: #fff4df;
+}
+
+.portfolio-project-tasks li .task-status.not_verified,
+.portfolio-project-tasks li .task-status.awaiting_review {
+  color: #687087;
+  background: #edf0f5;
+}
+
+.task-actual-result {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f3f5fb;
+  border-radius: 7px;
+}
+
+.task-actual-result > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start !important;
+  gap: 5px !important;
+  margin-top: 7px;
+}
+
+.task-actual-result code {
+  padding: 3px 6px;
+  color: #5268cf;
+  font-size: .68rem;
+  background: #fff;
+  border-radius: 5px;
+}
+
+.portfolio-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.portfolio-project-tasks li p {
+  margin: 5px 0;
+}
+
+.portfolio-project-tasks li small {
+  color: #888;
+}
+
+.interview-pitch {
+  border-color: #dfe3ff;
+  background: #f8f9ff;
+}
+
+@media (max-width: 700px) {
+  .portfolio-project-links {
+    position: static;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  .portfolio-project-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -34,19 +34,25 @@ export default function CourseDetailPage() {
   const loadAll = useCallback(async () => {
     try {
       setLoading(true);
-      const c = await courseAPI.get(Number(id));
+      setError(null);
+      const c = await courseAPI.getTree(Number(id));
       setCourse(c);
       setCourseForm({ title: c.title, description: c.description || "" });
 
-      const chs = await chapterAPI.listByCourse(Number(id));
+      const chs = c.chapters || [];
       setChapters(chs);
-
-      // 加载每个章节的课节
-      const map = {};
-      for (const ch of chs) {
-        map[ch.id] = await lessonAPI.listByChapter(ch.id);
-      }
-      setLessonsMap(map);
+      setLessonsMap(
+        Object.fromEntries(
+          chs.map((chapter) => [
+            chapter.id,
+            [...(chapter.lessons || [])].sort((first, second) =>
+              first.created_at === second.created_at
+                ? first.id - second.id
+                : first.created_at.localeCompare(second.created_at),
+            ),
+          ]),
+        ),
+      );
     } catch (err) {
       setError(err.message);
     } finally {

@@ -1,1 +1,190 @@
-/* CourseListPage 无额外样式，均使用 App.css 中的 .page .grid-3 .card 等 */
+.course-list-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.course-list-actions a {
+  text-decoration: none;
+}
+
+.learning-stats {
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #f7f8ff, #fff);
+  border: 1px solid #e8eaff;
+  border-radius: 12px;
+}
+
+.learning-stats h2 {
+  margin-bottom: 14px;
+  color: #444;
+  font-size: 1rem;
+}
+
+.learning-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.learning-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.learning-stat-item strong {
+  color: #4456b8;
+  font-size: 1.35rem;
+}
+
+.learning-stat-item span {
+  color: #888;
+  font-size: 0.74rem;
+}
+
+.learning-stats-progress {
+  height: 5px;
+  margin-top: 15px;
+  overflow: hidden;
+  background: #e7e9f6;
+  border-radius: 999px;
+}
+
+.learning-stats-progress div {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #34c759);
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.course-learning-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  color: #777;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #f0f0f0;
+  border-radius: 999px;
+}
+
+.course-learning-status.in_progress {
+  color: #5268cf;
+  background: #eef0ff;
+}
+
+.course-learning-status.completed {
+  color: #238b45;
+  background: #e9f8ee;
+}
+
+.course-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.course-progress-header strong {
+  color: #667eea;
+}
+
+.course-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: #eef0f7;
+  border-radius: 999px;
+}
+
+.course-progress-fill {
+  height: 100%;
+  min-width: 0;
+  background: linear-gradient(90deg, #667eea, #8b9cf6);
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.course-progress-fill.completed {
+  background: #34c759;
+}
+
+.course-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+  font-size: 0.72rem;
+  color: #999;
+}
+
+.recent-learning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px;
+  background: #f7f8ff;
+  border-radius: 8px;
+}
+
+.recent-learning-position {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: #999;
+}
+
+.recent-learning-position strong {
+  overflow: hidden;
+  color: #555;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-learning .btn {
+  flex-shrink: 0;
+}
+
+.recent-learning-empty {
+  margin-top: 12px;
+  padding: 10px;
+  color: #aaa;
+  font-size: 0.75rem;
+  text-align: center;
+  background: #f8f8f8;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .course-list-actions {
+    flex-direction: column;
+  }
+
+  .learning-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .course-progress-meta {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .recent-learning {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

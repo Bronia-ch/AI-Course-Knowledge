@@ -16,7 +16,9 @@ import ProgressBar from "../components/ProgressBar";
 import FileUploader from "../components/FileUploader";
 import KnowledgePointCard from "../components/KnowledgePointCard";
 import ProjectCard from "../components/ProjectCard";
+import LessonAssistant from "../components/LessonAssistant";
 import Modal from "../components/Modal";
+import "./LessonDetailPage.css";
 
 /**
  * 课节详情页 — 音频上传 / 转录 / 知识分析
@@ -77,7 +79,7 @@ export default function LessonDetailPage() {
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
     return () => audio.removeEventListener("timeupdate", handleTimeUpdate);
-  }, [knowledgePoints, audioInfo?.exists]);
+  }, [knowledgePoints, audioInfo?.file_path]);
 
   // 自动保存学习进度（每5秒）
 useEffect(() => {
@@ -190,7 +192,7 @@ useEffect(() => {
 
 },[
  knowledgePoints,
- audioInfo?.exists,
+ audioInfo?.file_path,
  id
 ]);
 
@@ -202,8 +204,8 @@ useEffect(() => {
       const data = await lessonAPI.get(Number(id));
       setLesson(data);
 
-      // 根据 status 决定是否加载详情
-      if (["completed", "analyzing", "analyzed"].includes(data.status)) {
+      // 只要课节已关联音频，就加载音频信息
+      if (data.audio_path) {
         try {
           const ai = await uploadAPI.getInfo(Number(id));
           setAudioInfo(ai);
@@ -235,10 +237,10 @@ useEffect(() => {
     loadLesson().finally(() => setLoading(false));
   }, [loadLesson]);
 
-  // 页面加载后恢复上次学习进度
+// 恢复学习进度
 useEffect(() => {
 
-  const restoreTimer = setTimeout(async () => {
+  const restoreProgress = async () => {
 
     const audio = audioRef.current;
 
@@ -261,9 +263,14 @@ useEffect(() => {
 
 
       if (
-        progress &&
-        progress.current_time > 0
+        !progress ||
+        progress.current_time <= 0
       ) {
+        return;
+      }
+
+
+      const setAudioTime = () => {
 
         audio.currentTime =
           progress.current_time;
@@ -278,6 +285,26 @@ useEffect(() => {
           "RESTORE TIME:",
           progress.current_time
         );
+
+      };
+
+
+      // 音频信息已经加载
+      if(audio.readyState >= 1){
+
+        setAudioTime();
+
+      }else{
+
+        // 等待音频加载完成
+        audio.addEventListener(
+          "loadedmetadata",
+          setAudioTime,
+          {
+            once:true
+          }
+        );
+
       }
 
 
@@ -290,17 +317,15 @@ useEffect(() => {
 
     }
 
-
-  },1000);
-
+  };
 
 
-  return ()=>clearTimeout(restoreTimer);
+  restoreProgress();
 
 
 },[
- audioInfo?.exists,
- id
+ id,
+ audioInfo?.file_path
 ]);
 
   // 轮询机制：status 为 processing/analyzing 时自动刷新
@@ -477,8 +502,10 @@ useEffect(() => {
             </div>
 
             <audio
+              key={audioInfo.file_path}
               ref={audioRef}
               controls
+              preload="metadata"
               style={{
                 width:"100%",
                 marginTop:12
@@ -486,7 +513,7 @@ useEffect(() => {
             >
               <source
                 src={`http://127.0.0.1:8000/uploads/${audioInfo.file_path}`}
-                type="audio/wav"
+                type={audioInfo.media_type}
               />
             </audio>
 
@@ -590,6 +617,10 @@ useEffect(() => {
             </button>
           </div>
         </section>
+      )}
+
+      {lesson.transcript_count > 0 && (
+        <LessonAssistant lessonId={Number(id)} />
       )}
 
       {/* === 知识点区域 === */}

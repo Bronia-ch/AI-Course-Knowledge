@@ -6,7 +6,7 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_db
 from ..models.models import Project, KnowledgeProjectRelation
@@ -46,6 +46,7 @@ def get_project_knowledge_points(
     # ---- 查询关联关系 ----
     relations = (
         db.query(KnowledgeProjectRelation)
+        .options(joinedload(KnowledgeProjectRelation.knowledge_point))
         .filter(KnowledgeProjectRelation.project_id == project_id)
         .all()
     )
@@ -54,7 +55,7 @@ def get_project_knowledge_points(
     result = []
     seen_kp_ids = set()
     for rel in relations:
-        kp = rel.knowledge_point  # relationship 自动加载
+        kp = rel.knowledge_point
         if kp.id in seen_kp_ids:
             continue  # 跳过重复知识点
         seen_kp_ids.add(kp.id)

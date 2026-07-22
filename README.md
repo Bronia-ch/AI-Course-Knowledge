@@ -78,6 +78,14 @@ npm run dev
 
 访问 http://localhost:5173 查看前端页面。
 
+### 3. Windows 一键启动
+
+后端和前端依赖安装完成后，可直接双击项目根目录中的 `start_app.bat`。
+
+脚本会自动启动 FastAPI 与 Vite，等待服务就绪后打开
+http://127.0.0.1:5173。如果脚本被复制到桌面，也会自动定位当前电脑上的
+`D:\AI-Course-Knowledge` 项目目录。
+
 ## 开发阶段
 
 - [x] 项目初始化

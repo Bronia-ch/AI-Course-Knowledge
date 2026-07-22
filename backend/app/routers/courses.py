@@ -21,15 +21,16 @@ from ..schemas.course import (
     CourseDetail,
     CourseTreeResponse,
 )
+from ..schemas.progress import CourseProgressResponse
 from ..services import course_service
 
 router = APIRouter(prefix="/api/courses", tags=["课程管理"])
 
 
-@router.get("", response_model=list[CourseResponse])
+@router.get("", response_model=list[CourseProgressResponse])
 def list_courses(db: Session = Depends(get_db)):
-    """获取所有课程列表"""
-    return course_service.get_courses(db)
+    """获取所有课程列表及学习进度汇总"""
+    return course_service.get_courses_with_progress(db)
 
 
 @router.get("/{course_id}", response_model=CourseDetail)

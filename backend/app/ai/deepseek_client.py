@@ -95,6 +95,7 @@ class DeepSeekClient:
         system_prompt: str,
         user_message: str,
         temperature: float = 0.3,
+        max_tokens: int = 4096,
     ) -> dict:
         """
         发送消息到 DeepSeek，返回解析后的 JSON
@@ -114,7 +115,12 @@ class DeepSeekClient:
         Raises:
             ValueError: JSON 解析失败
         """
-        content = self.chat(system_prompt, user_message, temperature)
+        content = self.chat(
+            system_prompt,
+            user_message,
+            temperature,
+            max_tokens=max_tokens,
+        )
 
         # 尝试提取 JSON：移除 markdown 代码块标记
         # 匹配 ```json ... ``` 或 ``` ... ```
@@ -243,3 +249,71 @@ class DeepSeekClient:
         )
 
         return relations
+
+    def extract_portfolio_opportunities(
+        self,
+        transcript_text: str,
+        knowledge_points: list,
+        course_projects: list,
+    ) -> list[dict]:
+        """提取适合面试展示的作品机会。"""
+        from .prompts import (
+            PORTFOLIO_OPPORTUNITY_SYSTEM_PROMPT,
+            build_portfolio_opportunity_prompt,
+        )
+
+        result = self.chat_json(
+            system_prompt=PORTFOLIO_OPPORTUNITY_SYSTEM_PROMPT,
+            user_message=build_portfolio_opportunity_prompt(
+                transcript_text,
+                knowledge_points,
+                course_projects,
+            ),
+            temperature=0.3,
+        )
+        opportunities = result.get("portfolio_opportunities", [])
+        logger.info("提取到 %d 个面试作品机会", len(opportunities))
+        return opportunities
+
+    def create_portfolio_project_blueprint(
+        self,
+        opportunity: dict,
+        transcript_text: str,
+        knowledge_points: list,
+    ) -> dict:
+        """将作品机会扩展为可执行项目蓝图。"""
+        from .prompts import (
+            PORTFOLIO_PROJECT_SYSTEM_PROMPT,
+            build_portfolio_project_prompt,
+        )
+
+        return self.chat_json(
+            system_prompt=PORTFOLIO_PROJECT_SYSTEM_PROMPT,
+            user_message=build_portfolio_project_prompt(
+                opportunity,
+                transcript_text,
+                knowledge_points,
+            ),
+            temperature=0.25,
+        )
+
+    def create_portfolio_execution_package(
+        self,
+        project: dict,
+        knowledge_points: list,
+    ) -> dict:
+        """生成可直接交给 Codex 等开发型 AI 的项目执行包。"""
+        from .prompts import (
+            PORTFOLIO_EXECUTION_SYSTEM_PROMPT,
+            build_portfolio_execution_prompt,
+        )
+
+        return self.chat_json(
+            system_prompt=PORTFOLIO_EXECUTION_SYSTEM_PROMPT,
+            user_message=build_portfolio_execution_prompt(
+                project,
+                knowledge_points,
+            ),
+            temperature=0.2,
+            max_tokens=8192,
+        )

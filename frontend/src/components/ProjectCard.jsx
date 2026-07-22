@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { projectAPI } from "../services/api";
 
 /**
  * 项目卡片 — 可折叠，展示技术栈和流程
@@ -6,21 +7,20 @@ import { useState, useEffect } from "react";
 export default function ProjectCard({ project }) {
   const [open, setOpen] = useState(false);
   const [knowledgePoints, setKnowledgePoints] = useState([]);
+  const [knowledgePointsLoaded, setKnowledgePointsLoaded] = useState(false);
 
   // 展开时加载关联知识点
   useEffect(() => {
-    if (!open || knowledgePoints.length > 0) return;
+    if (!open || knowledgePointsLoaded) return;
 
     const controller = new AbortController();
 
-    fetch(`/api/projects/${project.id}/knowledge-points`, {
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(res.statusText);
-        return res.json();
+    projectAPI
+      .listKnowledgePoints(project.id, controller.signal)
+      .then((data) => {
+        setKnowledgePoints(data);
+        setKnowledgePointsLoaded(true);
       })
-      .then((data) => setKnowledgePoints(data))
       .catch((err) => {
         if (err.name !== "AbortError") {
           console.error("加载关联知识点失败:", err);
@@ -28,7 +28,7 @@ export default function ProjectCard({ project }) {
       });
 
     return () => controller.abort();
-  }, [open, knowledgePoints.length, project.id]);
+  }, [open, knowledgePointsLoaded, project.id]);
 
   let techStack = [];
   let workflow = [];

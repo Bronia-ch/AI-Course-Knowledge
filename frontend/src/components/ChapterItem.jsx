@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import StatusBadge from "./StatusBadge";
+import ChapterPortfolioOpportunities from "./ChapterPortfolioOpportunities";
 
 /**
  * 章节项 — 包含章节标题、排序按钮、课节列表
@@ -20,7 +21,7 @@ export default function ChapterItem({
   const nav = useNavigate();
 
   return (
-    <div className="card" style={{ marginBottom: 12 }}>
+    <div className="card" id={`chapter-${chapter.id}`} style={{ marginBottom: 12 }}>
       {/* 章节头部 */}
       <div
         style={{
@@ -108,6 +109,8 @@ export default function ChapterItem({
           >
             + 添加课节
           </button>
+
+          <ChapterPortfolioOpportunities chapterId={chapter.id} lessons={lessons} />
         </div>
       )}
     </div>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { courseAPI } from "../services/api";
 import CourseCard from "../components/CourseCard";
+import LearningStats from "../components/LearningStats";
 import Modal from "../components/Modal";
 import "./CourseListPage.css";
 
@@ -85,10 +87,17 @@ export default function CourseListPage() {
           <h1>AI课程知识库</h1>
           <p style={{ color: "#888", fontSize: "0.9rem" }}>管理你的AI学习旅程</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          + 创建课程
-        </button>
+        <div className="course-list-actions">
+          <Link className="btn btn-secondary" to="/portfolio-projects">
+            我的作品
+          </Link>
+          <button className="btn btn-primary" onClick={openCreate}>
+            + 创建课程
+          </button>
+        </div>
       </div>
+
+      <LearningStats courses={courses} />
 
       {courses.length === 0 ? (
         <div style={{ textAlign: "center", padding: 60, color: "#aaa" }}>

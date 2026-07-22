@@ -3,11 +3,39 @@
  *
  * 约定：
  *   - 所有请求以 /api 开头（Vite proxy 转发到后端 localhost:8000）
- *   - 响应自动解析为 JSON
+ *   - 响应优先解析为 JSON，也兼容纯文本和空响应
  *   - 非 2xx 响应抛出带 message 的 Error
  */
 
 const BASE = "/api";
+
+async function parseResponse(res) {
+  const text = await res.text();
+  if (!text) return null;
+
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`服务器返回了无效的 JSON (${res.status})`);
+    }
+  }
+
+  return text;
+}
+
+function getErrorMessage(data, fallback) {
+  if (typeof data === "string" && data.trim()) return data;
+  if (typeof data?.detail === "string") return data.detail;
+  if (Array.isArray(data?.detail)) {
+    const messages = data.detail
+      .map((item) => item?.msg)
+      .filter(Boolean);
+    if (messages.length > 0) return messages.join("；");
+  }
+  return fallback;
+}
 
 /**
  * 通用请求函数
@@ -16,10 +44,11 @@ const BASE = "/api";
  * @param {object} [body] - 请求体（仅 POST/PUT）
  * @returns {Promise<object>} 解析后的 JSON 响应
  */
-async function request(method, path, body) {
+async function request(method, path, body, fetchOptions = {}) {
   const opts = {
+    ...fetchOptions,
     method,
-    headers: {},
+    headers: { ...(fetchOptions.headers || {}) },
   };
   if (body !== undefined) {
     opts.headers["Content-Type"] = "application/json";
@@ -27,12 +56,9 @@ async function request(method, path, body) {
   }
   const res = await fetch(BASE + path, opts);
 
-  // 204 No Content
-  if (res.status === 204) return null;
-
-  const data = await res.json();
+  const data = await parseResponse(res);
   if (!res.ok) {
-    throw new Error(data.detail || `请求失败 (${res.status})`);
+    throw new Error(getErrorMessage(data, `请求失败 (${res.status})`));
   }
   return data;
 }
@@ -48,11 +74,20 @@ async function uploadFile(path, formData) {
     method: "POST",
     body: formData,
   });
+  const data = await parseResponse(res);
   if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.detail || `上传失败 (${res.status})`);
+    throw new Error(getErrorMessage(data, `上传失败 (${res.status})`));
   }
-  return res.json();
+  return data;
+}
+
+async function downloadFile(path) {
+  const res = await fetch(BASE + path);
+  if (!res.ok) {
+    const data = await parseResponse(res);
+    throw new Error(getErrorMessage(data, `下载失败 (${res.status})`));
+  }
+  return res.blob();
 }
 
 // =========================================================================
@@ -132,6 +167,8 @@ export const knowledgePointAPI = {
 export const projectAPI = {
   listByLesson: (lessonId) =>
     request("GET", `/lessons/${lessonId}/projects`),
+  listKnowledgePoints: (projectId, signal) =>
+    request("GET", `/projects/${projectId}/knowledge-points`, undefined, { signal }),
 };
 
 // =========================================================================
@@ -140,6 +177,48 @@ export const projectAPI = {
 export const progressAPI = {
   get: (lessonId) => request("GET", `/lessons/${lessonId}/progress`),
   save: (lessonId, data) => request("POST", `/lessons/${lessonId}/progress`, data),
+};
+
+// =========================================================================
+// AI 学习助手 API
+// =========================================================================
+export const assistantAPI = {
+  ask: (lessonId, question) =>
+    request("POST", `/lessons/${lessonId}/ask`, { question }),
+};
+
+// =========================================================================
+// 面试作品机会 API
+// =========================================================================
+export const portfolioAPI = {
+  getOverview: () => request("GET", "/portfolio-overview"),
+  listProjects: () => request("GET", "/portfolio-projects"),
+  listOpportunities: (chapterId) =>
+    request("GET", `/chapters/${chapterId}/portfolio-opportunities`),
+  generateOpportunities: (chapterId) =>
+    request("POST", `/chapters/${chapterId}/portfolio-opportunities/generate`),
+  createProject: (opportunityId) =>
+    request("POST", `/portfolio-opportunities/${opportunityId}/create-project`),
+  getProject: (projectId) =>
+    request("GET", `/portfolio-projects/${projectId}`),
+  updateTask: (taskId, status) =>
+    request("PATCH", `/portfolio-project-tasks/${taskId}`, { status }),
+  updateShowcase: (projectId, data) =>
+    request("PUT", `/portfolio-projects/${projectId}/showcase`, data),
+  createEvidence: (projectId, data) =>
+    request("POST", `/portfolio-projects/${projectId}/evidences`, data),
+  deleteEvidence: (evidenceId) =>
+    request("DELETE", `/portfolio-evidences/${evidenceId}`),
+  getExecutionPackage: (projectId) =>
+    request("GET", `/portfolio-projects/${projectId}/execution-package`),
+  generateExecutionPackage: (projectId) =>
+    request("POST", `/portfolio-projects/${projectId}/execution-package/generate`),
+  downloadCodexPackage: (projectId) =>
+    downloadFile(`/portfolio-projects/${projectId}/execution-package/codex-zip`),
+  getCodeAnalysis: (projectId) =>
+    request("GET", `/portfolio-projects/${projectId}/code-analysis`),
+  importCodexAnalysis: (projectId, data) =>
+    request("POST", `/portfolio-projects/${projectId}/code-analysis/import`, data),
 };
 
 // =========================================================================

@@ -12,4 +12,5 @@ class AudioInfoResponse(BaseModel):
     file_path: str           # 存储的相对路径
     file_size: int           # 文件大小（字节）
     file_extension: str      # 文件扩展名
+    media_type: str          # 根据真实格式规范化后的 MIME 类型
     exists: bool             # 文件是否存在

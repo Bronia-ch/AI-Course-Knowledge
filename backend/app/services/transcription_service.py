@@ -63,50 +63,45 @@ def run_transcription(
             _set_lesson_status(db, lesson_id, "uploaded")
             return
 
-        # ---- 3. 清除旧转录数据 ----
-        deleted = (
-            db.query(Transcript)
-            .filter(Transcript.lesson_id == lesson_id)
-            .delete()
-        )
-        if deleted:
-            logger.info("已清除 %d 条旧转录记录", deleted)
-            db.commit()
-
-        # ---- 4. 开始转写 ----
+        # ---- 3. 开始转写；成功前不触碰旧转录 ----
         _set_lesson_status(db, lesson_id, "processing")
         logger.info("开始转录: lesson_id=%d, audio=%s", lesson_id, audio_abs_path)
 
         segments, info = whisper_transcriber.transcribe(str(audio_abs_path))
+        new_segments = [
+            {
+                "start_time": round(seg.start, 2),
+                "end_time": round(seg.end, 2),
+                "text": seg.text.strip(),
+            }
+            for seg in segments
+            if seg.text.strip()
+        ]
+        if not new_segments:
+            raise ValueError("Whisper 未生成有效转录文本")
 
-        # ---- 5. 逐段写入 Transcript ----
-        segment_count = 0
-        for seg in segments:
+        # ---- 4. 在同一事务中替换旧转录并更新课节 ----
+        deleted = (
+            db.query(Transcript)
+            .filter(Transcript.lesson_id == lesson_id)
+            .delete(synchronize_session=False)
+        )
+        for segment in new_segments:
             db.add(Transcript(
                 lesson_id=lesson_id,
-                start_time=round(seg.start, 2),
-                end_time=round(seg.end, 2),
-                text=seg.text.strip(),
+                **segment,
             ))
-            segment_count += 1
-
-        # 一次性提交所有 segments
+        lesson.duration = int(info.duration)
+        lesson.status = "completed"
         db.commit()
-        logger.info("已写入 %d 条转录记录", segment_count)
-
-        # ---- 6. 更新 Lesson ----
-        lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
-        if lesson:
-            lesson.duration = int(info.duration)
-            lesson.status = "completed"
-            db.commit()
-            logger.info(
-                "转录完成: lesson_id=%d, segments=%d, duration=%ds, language=%s",
-                lesson_id, segment_count, int(info.duration), info.language,
-            )
+        logger.info(
+            "转录完成: lesson_id=%d, replaced=%d, segments=%d, duration=%ds, language=%s",
+            lesson_id, deleted, len(new_segments), int(info.duration), info.language,
+        )
 
     except Exception as e:
         logger.exception("转录异常: lesson_id=%d, error=%s", lesson_id, e)
+        db.rollback()
         try:
             _set_lesson_status(db, lesson_id, "uploaded")
         except Exception:

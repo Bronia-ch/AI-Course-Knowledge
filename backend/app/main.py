@@ -17,10 +17,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import logging
 import os
+from pathlib import Path
 
 from . import models  # noqa: F401 — 注册所有模型到 Base.metadata
 from .database import init_db
 from .config import settings
+
+# backend 目录。上传目录必须基于代码位置解析，避免受启动工作目录影响。
+BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOAD_DIR = Path(settings.UPLOAD_DIR)
+if not UPLOAD_DIR.is_absolute():
+    UPLOAD_DIR = BASE_DIR / UPLOAD_DIR
+UPLOAD_DIR = UPLOAD_DIR.resolve()
 
 # 日志配置
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +44,7 @@ if os.path.isdir(_cublas_dll_path):
     os.environ["PATH"] = _cublas_dll_path + ";" + os.environ.get("PATH", "")
 
 # 确保上传目录存在（应用启动时创建）
-os.makedirs(os.path.join(settings.UPLOAD_DIR, "audio"), exist_ok=True)
+os.makedirs(UPLOAD_DIR / "audio", exist_ok=True)
 
 
 @asynccontextmanager
@@ -46,14 +54,14 @@ async def lifespan(app: FastAPI):
 
     启动时：
       1. 初始化数据库表
-      2. 加载 Whisper 模型到 GPU/CPU
+      2. 创建轻量 Whisper 转录器（首次转录时才加载模型）
     关闭时：释放 AI 模型资源
     """
     # ===== 启动事件 =====
     init_db()
     logger.info("数据库表已初始化")
 
-    # 加载 Whisper 模型（单例，存于 app.state）
+    # 创建 Whisper 转录器单例；模型在首次转录时按需加载。
     from .ai.whisper_transcriber import WhisperTranscriber
     try:
         app.state.whisper_model = WhisperTranscriber(
@@ -62,9 +70,9 @@ async def lifespan(app: FastAPI):
             compute_type=settings.WHISPER_COMPUTE_TYPE,
             beam_size=settings.WHISPER_BEAM_SIZE,
         )
-        logger.info("Whisper 模型已加载到 app.state.whisper_model")
+        logger.info("Whisper 转录器已初始化，模型将在首次转录时加载")
     except Exception as e:
-        logger.warning("Whisper 模型加载失败（GPU 不可用?）: %s", e)
+        logger.warning("Whisper 转录器初始化失败: %s", e)
         app.state.whisper_model = None
 
     yield  # 应用运行期间
@@ -84,7 +92,7 @@ app = FastAPI(
 # ===== 静态文件 =====
 app.mount(
     "/uploads",
-    StaticFiles(directory=settings.UPLOAD_DIR),
+    StaticFiles(directory=str(UPLOAD_DIR)),
     name="uploads",
 )
 
@@ -123,6 +131,8 @@ from .routers.analysis import router as analysis_router
 from .routers.lesson_data import router as lesson_data_router
 from .routers.project_relations import router as project_relations_router
 from .routers.progress import router as progress_router
+from .routers.assistant import router as assistant_router
+from .routers.portfolio import router as portfolio_router
 
 app.include_router(courses_router)
 app.include_router(chapters_router)
@@ -133,3 +143,5 @@ app.include_router(analysis_router)
 app.include_router(lesson_data_router)
 app.include_router(project_relations_router)
 app.include_router(progress_router)
+app.include_router(assistant_router)
+app.include_router(portfolio_router)

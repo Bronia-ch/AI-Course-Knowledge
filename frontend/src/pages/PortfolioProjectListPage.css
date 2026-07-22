@@ -1,0 +1,119 @@
+.portfolio-list-page .page-header p {
+  margin-top: 6px;
+  color: #777;
+  font-size: 0.86rem;
+}
+
+.portfolio-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.portfolio-list-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portfolio-list-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.72rem;
+}
+
+.portfolio-list-card-meta span,
+.portfolio-list-card-meta strong {
+  padding: 4px 8px;
+  color: #5268cf;
+  background: #eef0ff;
+  border-radius: 999px;
+}
+
+.portfolio-list-card-meta strong.in_progress {
+  color: #a56412;
+  background: #fff4df;
+}
+
+.portfolio-list-card-meta strong.completed {
+  color: #238b45;
+  background: #e9f8ee;
+}
+
+.portfolio-list-card-meta strong.partial,
+.portfolio-list-card-meta strong.not_verified {
+  color: #a56412;
+  background: #fff4df;
+}
+
+.portfolio-list-card-meta strong.verified {
+  color: #238b45;
+  background: #e9f8ee;
+}
+
+.portfolio-list-card h2 {
+  color: #3f465e;
+  font-size: 1.05rem;
+}
+
+.portfolio-list-card p {
+  flex: 1;
+  color: #666;
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.portfolio-list-card small {
+  color: #999;
+}
+
+.portfolio-list-progress-label {
+  display: flex;
+  justify-content: space-between;
+  color: #777;
+  font-size: 0.76rem;
+}
+
+.portfolio-list-progress-label strong {
+  color: #5268cf;
+}
+
+.portfolio-list-progress {
+  height: 7px;
+  overflow: hidden;
+  background: #edf0f7;
+  border-radius: 999px;
+}
+
+.portfolio-list-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #34c759);
+  border-radius: inherit;
+}
+
+.portfolio-list-card > .btn {
+  align-self: flex-start;
+  text-decoration: none;
+}
+
+.portfolio-list-empty {
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.portfolio-list-empty p {
+  margin: 10px 0 18px;
+  color: #888;
+}
+
+.portfolio-list-empty .btn {
+  text-decoration: none;
+}
+
+@media (max-width: 700px) {
+  .portfolio-list-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,1 +1,100 @@
-/* LessonDetailPage 无额外样式 */
+.lesson-assistant {
+  margin-bottom: 16px;
+}
+
+.lesson-assistant-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.lesson-assistant-header p {
+  margin-top: 4px;
+  color: #999;
+  font-size: 0.78rem;
+}
+
+.lesson-assistant-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  margin-top: 14px;
+  padding: 12px;
+  overflow-y: auto;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.lesson-assistant-message {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.lesson-assistant-message > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: #fff;
+  font-size: 0.7rem;
+  background: #667eea;
+  border-radius: 50%;
+}
+
+.lesson-assistant-message.user > span {
+  background: #777;
+}
+
+.lesson-assistant-message p {
+  margin: 0;
+  padding: 8px 10px;
+  color: #444;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.lesson-assistant-message.pending p {
+  color: #999;
+}
+
+.lesson-assistant-error {
+  margin-top: 10px;
+  color: #d93025;
+  font-size: 0.8rem;
+}
+
+.lesson-assistant-form {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-top: 14px;
+}
+
+.lesson-assistant-form textarea {
+  flex: 1;
+  min-height: 58px;
+  padding: 10px 12px;
+  resize: vertical;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.lesson-assistant-form textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+@media (max-width: 640px) {
+  .lesson-assistant-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

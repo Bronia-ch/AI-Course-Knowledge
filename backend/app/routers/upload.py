@@ -7,6 +7,7 @@
   DELETE /api/lessons/{id}/audio          — 删除音频
 """
 
+import logging
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -18,6 +19,7 @@ from ..schemas.course import LessonResponse
 from ..services import course_service, upload_service
 
 router = APIRouter(prefix="/api/lessons", tags=["音频上传"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/{lesson_id}/upload-audio", response_model=LessonResponse)
@@ -39,28 +41,32 @@ async def upload_audio(
         raise HTTPException(status_code=404, detail="课节不存在")
 
     try:
-        # 如果已有音频文件，先清理旧文件
-        if lesson.audio_path:
-            old_filename = os.path.basename(lesson.audio_path)
-            upload_service.delete_audio_file(lesson_id, old_filename)
-
-        # 保存新文件
+        old_filename = os.path.basename(lesson.audio_path) if lesson.audio_path else None
+        # 新文件完成大小和真实音频校验后，才允许替换数据库记录。
         stored_filename, _ = await upload_service.save_audio_file(lesson_id, file)
+        try:
+            lesson.audio_path = stored_filename
+            lesson.status = "uploaded"
+            db.commit()
+            db.refresh(lesson)
+        except Exception:
+            db.rollback()
+            upload_service.delete_audio_file(lesson_id, stored_filename)
+            raise
 
-        # 更新 Lesson 记录
-        from ..schemas.course import LessonUpdate
-        course_service.update_lesson(
-            db, lesson_id,
-            LessonUpdate(audio_path=stored_filename, status="uploaded")
-        )
-
-        db.refresh(lesson)
+        # 数据库已稳定指向新文件，旧文件删除失败只会留下可清理的孤立文件。
+        if old_filename and old_filename != stored_filename:
+            try:
+                upload_service.delete_audio_file(lesson_id, old_filename)
+            except OSError:
+                logger.warning("旧音频清理失败: lesson_id=%d, file=%s", lesson_id, old_filename)
         return lesson
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文件保存失败: {str(e)}")
+        logger.exception("文件保存失败: lesson_id=%d", lesson_id)
+        raise HTTPException(status_code=500, detail="文件保存失败，请稍后重试") from e
 
 
 @router.get("/{lesson_id}/audio", response_model=AudioInfoResponse)

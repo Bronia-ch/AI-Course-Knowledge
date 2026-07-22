@@ -13,11 +13,12 @@ Whisper 语音转文字 — 基于 faster-whisper
     medium + int8   → ~3 GB
 
 生命周期：
-    单例模式 — 应用启动时在 main.py lifespan 中创建一次，
-    存于 app.state.whisper_model，所有请求共享同一实例。
+    单例模式 — 应用启动时只创建轻量转录器，首次转录时才加载模型。
+    转录器存于 app.state.whisper_model，所有请求共享同一实例。
 """
 
 import logging
+from threading import Lock
 from typing import Generator, Optional
 
 from faster_whisper import WhisperModel
@@ -75,22 +76,36 @@ class WhisperTranscriber:
             beam_size=beam_size,
         )
         self._model: Optional[WhisperModel] = None
-        self._load_model()
+        self._load_lock = Lock()
 
-    def _load_model(self) -> None:
-        """加载 Whisper 模型到 GPU/CPU"""
+    def _ensure_model(self) -> WhisperModel:
+        """首次使用时线程安全地加载模型，后续直接复用。"""
+        if self._model is not None:
+            return self._model
+
+        with self._load_lock:
+            if self._model is not None:
+                return self._model
+
+            self._model = self._load_model()
+
+        return self._model
+
+    def _load_model(self) -> WhisperModel:
+        """加载 Whisper 模型到 GPU/CPU。"""
         logger.info(
             "加载 Whisper 模型: %s (compute=%s) on %s ...",
             self.config.model_size,
             self.config.compute_type,
             self.config.device,
         )
-        self._model = WhisperModel(
+        model = WhisperModel(
             self.config.model_size,
             device=self.config.device,
             compute_type=self.config.compute_type,
         )
         logger.info("Whisper 模型加载完成")
+        return model
 
     def transcribe(self, audio_path: str) -> tuple:
         """
@@ -108,12 +123,11 @@ class WhisperTranscriber:
             FileNotFoundError: 音频文件不存在
             RuntimeError: 模型未加载或转写失败
         """
-        if self._model is None:
-            raise RuntimeError("Whisper 模型未加载")
+        model = self._ensure_model()
 
         logger.info("开始转写: %s (beam_size=%d)", audio_path, self.config.beam_size)
 
-        segments, info = self._model.transcribe(
+        segments, info = model.transcribe(
             audio_path,
             beam_size=self.config.beam_size,
             language=None,           # auto-detect

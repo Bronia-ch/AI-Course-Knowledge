@@ -69,10 +69,10 @@ def trigger_transcription(
     if not audio_abs_path.exists():
         raise HTTPException(status_code=400, detail=f"音频文件不存在: {audio_abs_path}")
 
-    # ---- 获取 Whisper 模型 ----
+    # ---- 获取 Whisper 转录器（模型会在后台任务首次使用时加载）----
     whisper_model = getattr(request.app.state, "whisper_model", None)
     if whisper_model is None:
-        raise HTTPException(status_code=503, detail="Whisper 模型未加载，请检查服务启动日志")
+        raise HTTPException(status_code=503, detail="Whisper 转录服务未初始化，请重启后端服务")
 
     # ---- 设置状态为 processing ----
     from ..schemas.course import LessonUpdate

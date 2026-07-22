@@ -8,7 +8,7 @@ API Schema 定义 — Course / Chapter / Lesson
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # =============================================================================
@@ -38,12 +38,12 @@ class CourseResponse(BaseModel):
 
 class CourseDetail(CourseResponse):
     """课程详情（含章节列表）"""
-    chapters: List["ChapterResponse"] = []
+    chapters: List["ChapterResponse"] = Field(default_factory=list)
 
 
 class CourseTreeResponse(CourseResponse):
     """课程树（含章节→课节完整嵌套）"""
-    chapters: List["ChapterTreeResponse"] = []
+    chapters: List["ChapterTreeResponse"] = Field(default_factory=list)
 
 
 # =============================================================================
@@ -74,12 +74,12 @@ class ChapterResponse(BaseModel):
 
 class ChapterDetail(ChapterResponse):
     """章节详情（含课节列表）"""
-    lessons: List["LessonResponse"] = []
+    lessons: List["LessonResponse"] = Field(default_factory=list)
 
 
 class ChapterTreeResponse(ChapterResponse):
     """章节树节点（含课节列表）"""
-    lessons: List["LessonResponse"] = []
+    lessons: List["LessonResponse"] = Field(default_factory=list)
 
 
 # =============================================================================
