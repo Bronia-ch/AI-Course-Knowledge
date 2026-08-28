@@ -325,6 +325,12 @@ class PortfolioProject(Base):
     interview_pitch: Mapped[str] = mapped_column(Text, nullable=False)
     estimated_effort: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="planning")
+    learning_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="用户完成作品学习指南的累计次数",
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -386,6 +392,12 @@ class PortfolioProject(Base):
     )
     learning_guide: Mapped[Optional["PortfolioLearningGuide"]] = relationship(
         "PortfolioLearningGuide",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    concept_guide: Mapped[Optional["PortfolioConceptGuide"]] = relationship(
+        "PortfolioConceptGuide",
         back_populates="project",
         cascade="all, delete-orphan",
         uselist=False,
@@ -658,6 +670,38 @@ class PortfolioLearningGuide(Base):
     project: Mapped["PortfolioProject"] = relationship(
         "PortfolioProject",
         back_populates="learning_guide",
+    )
+
+
+# =============================================================================
+# PortfolioConceptGuide — 无需先开发源码的作品概念学习指南
+# =============================================================================
+class PortfolioConceptGuide(Base):
+    __tablename__ = "portfolio_concept_guides"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("portfolio_projects.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    reference_sources: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    reference_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="not_searched"
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    project: Mapped["PortfolioProject"] = relationship(
+        "PortfolioProject",
+        back_populates="concept_guide",
     )
 
 

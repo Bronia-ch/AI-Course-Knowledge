@@ -4,6 +4,7 @@ import { courseAPI, chapterAPI, lessonAPI } from "../services/api";
 import Breadcrumb from "../components/Breadcrumb";
 import ChapterItem from "../components/ChapterItem";
 import Modal from "../components/Modal";
+import BackToTopButton from "../components/BackToTopButton";
 
 /**
  * 课程详情页 — 章节和课节管理
@@ -31,9 +32,9 @@ export default function CourseDetailPage() {
   const [lessonForm, setLessonForm] = useState({ title: "", description: "" });
 
   // 加载全部数据
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async ({ showLoading = true } = {}) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       setError(null);
       const c = await courseAPI.getTree(Number(id));
       setCourse(c);
@@ -56,7 +57,7 @@ export default function CourseDetailPage() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [id]);
 
@@ -157,6 +158,7 @@ export default function CourseDetailPage() {
 
   const handleLessonSubmit = async (e) => {
     e.preventDefault();
+    const scrollPosition = window.scrollY;
     try {
       if (editingLesson) {
         await lessonAPI.update(editingLesson.id, lessonForm);
@@ -164,7 +166,8 @@ export default function CourseDetailPage() {
         await lessonAPI.create({ ...lessonForm, chapter_id: lessonChapterId });
       }
       setShowLessonForm(false);
-      await loadAll();
+      await loadAll({ showLoading: false });
+      window.requestAnimationFrame(() => window.scrollTo(0, scrollPosition));
     } catch (err) {
       alert(err.message);
     }
@@ -248,6 +251,8 @@ export default function CourseDetailPage() {
           />
         ))
       )}
+
+      <BackToTopButton />
 
       {/* 编辑课程弹窗 */}
       <Modal

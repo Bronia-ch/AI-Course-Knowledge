@@ -105,14 +105,17 @@ export default function PortfolioProjectPage() {
           <strong>{usesCodexStatus ? implementationStatusLabels[actualStatus.overall_status] : (projectStatusLabels[project.status] || project.status)}</strong>
         </div>
         <div className="portfolio-project-links">
+          <Link className="primary-learning-link" to={`/portfolio-projects/${project.id}/learn`}>
+            作品学习指南
+          </Link>
           <Link to={`/portfolio-projects/${project.id}/execution`}>
-            AI 项目执行包
+            源码学习（可选）
           </Link>
           <Link to={`/portfolio-projects/${project.id}/showcase`}>
             面试展示页
           </Link>
           <Link to={`/portfolio-projects/${project.id}/code-analysis`}>
-            真实代码讲解
+            已有源码讲解
           </Link>
         </div>
         <h1>{project.title}</h1>

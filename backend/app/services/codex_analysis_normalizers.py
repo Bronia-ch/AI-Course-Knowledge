@@ -1,5 +1,6 @@
 """规范化并校验 Codex 生成的真实代码分析结果。"""
 
+import hashlib
 import json
 import re
 
@@ -48,7 +49,7 @@ def normalize_codex_result(data: dict, planned_tasks: list) -> dict:
     )
     if not verification_evidence:
         raise ValueError("Codex 分析必须包含验证证据")
-    learning_guide = normalize_learning_guide(data.get("learning_guide"))
+    learning_guide = normalize_learning_guide(data.get("learning_guide"), file_tree)
     interview_demo = strings(data.get("interview_demo"), 30)
     interview_showcase = normalize_interview_showcase(
         data.get("interview_showcase"),
@@ -124,26 +125,43 @@ def validate_result_references(
                 file_tree,
                 "面试展示内容引用了文件清单中不存在的文件",
             )
-    for item in data["implementation_status"].get("task_results", []):
+    status_items = (
+        data["implementation_status"].get("task_results", [])
+        + data["implementation_status"].get("workflow_results", [])
+    )
+    for item in status_items:
         _validate_locations(
             item.get("evidence_files", []),
             file_tree,
             "任务实现状态引用了文件清单中不存在的文件",
         )
     guide = data["learning_guide"]
-    for section in (guide["running_story"], guide["chapters"]):
-        for item in section:
-            _validate_locations(
-                item.get("code_locations", []),
-                file_tree,
-                "初学者讲解引用了文件清单中不存在的位置",
-            )
-    for lesson in guide["knowledge_lessons"]:
+    if guide.get("annotated_files"):
         _validate_locations(
-            lesson.get("code_locations", []),
+            [guide["code_map"]["entry_point"]],
             file_tree,
-            "知识讲解引用了文件清单中不存在的位置",
+            "代码地图引用了不存在的入口文件",
         )
+        for section in guide.get("story_sections", []):
+            _validate_locations(
+                section.get("code_locations", []),
+                file_tree,
+                "零基础教学章节引用了文件清单中不存在的位置",
+            )
+    else:
+        for section in (guide["running_story"], guide["chapters"]):
+            for item in section:
+                _validate_locations(
+                    item.get("code_locations", []),
+                    file_tree,
+                    "初学者讲解引用了文件清单中不存在的位置",
+                )
+        for lesson in guide["knowledge_lessons"]:
+            _validate_locations(
+                lesson.get("code_locations", []),
+                file_tree,
+                "知识讲解引用了文件清单中不存在的位置",
+            )
 
 
 def _validate_locations(locations: list, file_tree: list[str], message: str) -> None:
@@ -152,7 +170,230 @@ def _validate_locations(locations: list, file_tree: list[str], message: str) -> 
             raise ValueError(f"{message}：{location}")
 
 
-def normalize_learning_guide(value) -> dict:
+def normalize_learning_guide(value, file_tree: list[str] | None = None) -> dict:
+    """新版按完整源码批注校验；旧版数据继续兼容展示。"""
+    if isinstance(value, dict) and any(
+        key in value for key in ("beginner_story", "code_map", "annotated_files")
+    ):
+        return normalize_annotated_learning_guide(value, file_tree or [])
+    return _normalize_legacy_learning_guide(value)
+
+
+def normalize_annotated_learning_guide(value: dict, file_tree: list[str]) -> dict:
+    story_raw = value.get("beginner_story")
+    if not isinstance(story_raw, dict):
+        raise ValueError("learning_guide 缺少连续的 beginner_story")
+    story = text_record(
+        story_raw,
+        ("title", "content", "after_reading"),
+        "beginner_story",
+    )
+    if len(story["content"]) < 300:
+        raise ValueError("beginner_story 过短，无法带零基础读者连续理解项目")
+    story["quick_verification"] = text_record(
+        story_raw.get("quick_verification"),
+        ("action", "command", "expected_result", "what_it_proves"),
+        "beginner_story.quick_verification",
+    )
+    concept_ladder = optional_complete_records(
+        value.get("concept_ladder"),
+        (
+            "term", "before_term", "plain_explanation", "analogy",
+            "project_role", "remember",
+        ),
+        "concept_ladder",
+        minimum=3,
+        limit=20,
+    )
+    learning_flow = optional_complete_records(
+        value.get("learning_flow"),
+        (
+            "label", "what_user_sees", "what_program_does", "why_needed",
+            "technical_terms",
+        ),
+        "learning_flow",
+        minimum=3,
+        limit=10,
+    )
+    story_sections = optional_complete_records(
+        value.get("story_sections"),
+        (
+            "title", "learning_goal", "content", "new_terms",
+            "code_locations", "checkpoint",
+        ),
+        "story_sections",
+        minimum=3,
+        limit=12,
+    )
+    if story_sections and sum(len(item["content"]) for item in story_sections) < 800:
+        raise ValueError("story_sections 正文合计过短，无法逐步教会零基础读者")
+    self_checks = optional_complete_records(
+        value.get("self_checks"),
+        ("question", "hint", "answer", "why_it_matters"),
+        "self_checks",
+        minimum=3,
+        limit=12,
+    )
+
+    map_raw = value.get("code_map")
+    if not isinstance(map_raw, dict):
+        raise ValueError("learning_guide 缺少 code_map")
+    overview = str(map_raw.get("overview") or "").strip()
+    entry_point_raw = str(map_raw.get("entry_point") or "").strip()
+    runtime_flow = strings(map_raw.get("runtime_flow"), 40)
+    reading_order = records(
+        map_raw.get("reading_order"),
+        ("path", "role", "why_read_now"),
+        200,
+    )
+    if not overview or not entry_point_raw or len(runtime_flow) < 2 or not reading_order:
+        raise ValueError("code_map 必须包含入口、运行流程和阅读顺序")
+    reading_paths = []
+    for item in reading_order:
+        item["path"] = normalize_reference(item["path"])
+        if not item["path"] or item["path"] in reading_paths:
+            raise ValueError("code_map.reading_order 包含空路径或重复路径")
+        reading_paths.append(item["path"])
+
+    inventory_raw = value.get("source_inventory")
+    if not isinstance(inventory_raw, list) or len(inventory_raw) > 2000:
+        raise ValueError("source_inventory 必须是不超过 2000 项的数组")
+    inventory = []
+    inventory_by_path = {}
+    allowed_categories = {"annotated_source", "supporting_file", "excluded"}
+    for raw in inventory_raw:
+        if not isinstance(raw, dict):
+            raise ValueError("source_inventory 包含无效记录")
+        path = normalize_reference(raw.get("path"))
+        category = str(raw.get("category") or "").strip()
+        reason = str(raw.get("reason") or "").strip()
+        if path not in file_tree or path in inventory_by_path:
+            raise ValueError(f"source_inventory 引用了未知或重复文件：{path}")
+        if category not in allowed_categories or not reason:
+            raise ValueError(f"source_inventory 的分类或说明无效：{path}")
+        item = {"path": path, "category": category, "reason": reason}
+        inventory.append(item)
+        inventory_by_path[path] = item
+    missing_inventory = [path for path in file_tree if path not in inventory_by_path]
+    if missing_inventory:
+        raise ValueError(
+            "source_inventory 未覆盖全部文件：" + "、".join(missing_inventory[:10])
+        )
+
+    files_raw = value.get("annotated_files")
+    if not isinstance(files_raw, list) or not files_raw or len(files_raw) > 200:
+        raise ValueError("annotated_files 必须包含 1-200 个源码文件")
+    annotated_files = []
+    annotated_paths = []
+    total_source_chars = 0
+    for raw in files_raw:
+        annotated = normalize_annotated_file(raw, file_tree)
+        path = annotated["path"]
+        if path in annotated_paths:
+            raise ValueError(f"annotated_files 重复包含文件：{path}")
+        annotated_paths.append(path)
+        total_source_chars += len(annotated["source"])
+        if total_source_chars > 2_000_000:
+            raise ValueError("annotated_files 的源码文本总量不得超过 2000000 字符")
+        annotated_files.append(annotated)
+
+    inventory_annotated = {
+        path for path, item in inventory_by_path.items()
+        if item["category"] == "annotated_source"
+    }
+    if set(annotated_paths) != inventory_annotated:
+        raise ValueError("annotated_files 必须与 source_inventory 的 annotated_source 完全一致")
+    if set(reading_paths) != set(annotated_paths):
+        raise ValueError("code_map.reading_order 必须不遗漏地覆盖全部批注源码")
+    entry_point = resolve_file_reference(entry_point_raw, annotated_paths)
+    if not entry_point:
+        raise ValueError(
+            "code_map.entry_point 必须引用一个已批注的真实源码文件；"
+            f"无法从以下内容识别路径：{entry_point_raw[:200]}"
+        )
+
+    return {
+        "beginner_story": story,
+        "concept_ladder": concept_ladder,
+        "learning_flow": learning_flow,
+        "story_sections": story_sections,
+        "self_checks": self_checks,
+        "code_map": {
+            "overview": overview,
+            "entry_point": entry_point,
+            "runtime_flow": runtime_flow,
+            "reading_order": reading_order,
+        },
+        "source_inventory": inventory,
+        "annotated_files": annotated_files,
+    }
+
+
+def normalize_annotated_file(value, file_tree: list[str]) -> dict:
+    if not isinstance(value, dict):
+        raise ValueError("annotated_files 包含无效文件记录")
+    path = normalize_reference(value.get("path"))
+    role = str(value.get("role") or "").strip()
+    language = str(value.get("language") or "").strip()
+    source_hash = str(value.get("source_sha256") or "").strip().lower()
+    source = value.get("source")
+    if path not in file_tree or not role or not language or not isinstance(source, str):
+        raise ValueError(f"批注源码的路径、作用、语言或原文无效：{path}")
+    if _is_sensitive_source_path(path):
+        raise ValueError(f"敏感文件不得写入源码讲解：{path}")
+    if not source or len(source) > 200_000:
+        raise ValueError(f"源码文件为空或超过 200000 字符：{path}")
+    actual_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    if source_hash != actual_hash:
+        raise ValueError(f"源码 SHA-256 与原文不一致：{path}")
+
+    line_count = len(source.splitlines()) or 1
+    raw_annotations = value.get("annotations")
+    if not isinstance(raw_annotations, list) or not raw_annotations:
+        raise ValueError(f"源码缺少分段批注：{path}")
+    annotations = []
+    expected_start = 1
+    text_fields = (
+        "title", "plain_explanation", "why_needed", "input_output",
+        "connection", "course_knowledge", "beginner_warning",
+    )
+    for raw in raw_annotations:
+        if not isinstance(raw, dict):
+            raise ValueError(f"源码包含无效批注：{path}")
+        start = positive_int(raw.get("start_line"), "start_line")
+        end = positive_int(raw.get("end_line"), "end_line")
+        texts = {field: str(raw.get(field) or "").strip() for field in text_fields}
+        if any(not text for text in texts.values()):
+            raise ValueError(f"源码批注解释不完整：{path}:{start}-{end}")
+        if start != expected_start or end < start or end > line_count:
+            raise ValueError(f"源码批注行号必须连续、无重叠且不越界：{path}:{start}-{end}")
+        if end - start + 1 > 120:
+            raise ValueError(f"单段源码批注不得超过 120 行：{path}:{start}-{end}")
+        annotations.append({"start_line": start, "end_line": end, **texts})
+        expected_start = end + 1
+    if expected_start != line_count + 1:
+        raise ValueError(f"源码批注未覆盖到文件最后一行：{path}")
+    return {
+        "path": path,
+        "role": role,
+        "language": language,
+        "source_sha256": source_hash,
+        "source": source,
+        "annotations": annotations,
+    }
+
+
+def _is_sensitive_source_path(path: str) -> bool:
+    name = path.rsplit("/", 1)[-1].lower()
+    return (
+        name == ".env"
+        or name.startswith(".env.")
+        or name in {"id_rsa", "id_ed25519", "credentials.json"}
+        or name.endswith((".pem", ".key", ".p12", ".pfx"))
+    )
+
+
+def _normalize_legacy_learning_guide(value) -> dict:
     if not isinstance(value, dict):
         raise ValueError("Codex 分析必须包含面向初学者的 learning_guide")
     overview = text_record(
@@ -246,6 +487,19 @@ def normalize_learning_guide(value) -> dict:
     }
 
 
+def _task_title_key(value: str) -> str:
+    """移除 Codex 可能从阶段标题复制的编号前缀，保留真实任务名。"""
+    title = str(value or "").strip()
+    pattern = re.compile(
+        r"^\s*(?:第\s*\d+\s*阶段|阶段\s*\d+)\s*[:：、.\-]\s*"
+    )
+    while True:
+        normalized = pattern.sub("", title, count=1).strip()
+        if normalized == title:
+            return normalized
+        title = normalized
+
+
 def normalize_implementation_status(value, planned_tasks: list) -> dict:
     if not isinstance(value, dict):
         return {"summary": "旧版分析未按计划任务逐项核对。", "task_results": []}
@@ -253,32 +507,50 @@ def normalize_implementation_status(value, planned_tasks: list) -> dict:
     if not summary:
         raise ValueError("implementation_status 缺少整体实现说明")
     tasks_by_title = {task.title.strip(): task for task in planned_tasks}
+    tasks_by_key = {_task_title_key(title): task for title, task in tasks_by_title.items()}
     raw_results = value.get("task_results")
     if not isinstance(raw_results, list):
         raise ValueError("implementation_status.task_results 必须是数组")
     results = []
+    workflow_results = []
     seen_titles = set()
+    seen_workflow_titles = set()
     for raw in raw_results:
         if not isinstance(raw, dict):
             raise ValueError("implementation_status 包含无效任务记录")
-        title = str(raw.get("task_title") or "").strip()
-        if title not in tasks_by_title:
-            raise ValueError(f"implementation_status 引用了未知计划任务：{title}")
-        if title in seen_titles:
-            raise ValueError(f"implementation_status 重复引用计划任务：{title}")
+        raw_title = str(raw.get("task_title") or "").strip()
+        task = tasks_by_title.get(raw_title) or tasks_by_key.get(
+            _task_title_key(raw_title)
+        )
         status = str(raw.get("status") or "").strip()
         if status not in {"verified", "partial", "not_verified"}:
-            raise ValueError(f"任务「{title}」的实现状态无效")
+            raise ValueError(f"任务「{raw_title}」的实现状态无效")
         explanation = str(raw.get("explanation") or "").strip()
         if not explanation:
-            raise ValueError(f"任务「{title}」缺少实现状态说明")
+            raise ValueError(f"任务「{raw_title}」缺少实现状态说明")
         evidence_files = strings(raw.get("evidence_files"), 30)
+        if not task:
+            if raw_title in seen_workflow_titles:
+                continue
+            seen_workflow_titles.add(raw_title)
+            workflow_results.append({
+                "task_id": None,
+                "task_title": raw_title,
+                "status": status,
+                "explanation": explanation,
+                "evidence_files": evidence_files,
+            })
+            continue
+
+        title = task.title.strip()
+        if title in seen_titles:
+            raise ValueError(f"implementation_status 重复引用计划任务：{title}")
         if status in {"verified", "partial"} and not evidence_files:
             raise ValueError(f"任务「{title}」标为已实现时必须提供真实代码文件")
         seen_titles.add(title)
         results.append(
             {
-                "task_id": tasks_by_title[title].id,
+                "task_id": task.id,
                 "task_title": title,
                 "status": status,
                 "explanation": explanation,
@@ -290,7 +562,11 @@ def normalize_implementation_status(value, planned_tasks: list) -> dict:
         raise ValueError(
             "implementation_status 未覆盖全部计划任务：" + "、".join(missing_titles)
         )
-    return {"summary": summary, "task_results": results}
+    return {
+        "summary": summary,
+        "task_results": results,
+        "workflow_results": workflow_results,
+    }
 
 
 def normalize_interview_showcase(
@@ -492,6 +768,25 @@ def text_record(value, fields: tuple[str, ...], label: str) -> dict:
     return result
 
 
+def optional_complete_records(
+    value,
+    fields: tuple[str, ...],
+    label: str,
+    minimum: int,
+    limit: int,
+) -> list[dict]:
+    """校验新版教学数组；字段缺失时保留旧版现代 JSON 兼容性。"""
+    if value is None:
+        return []
+    items = records(value, fields, limit)
+    if len(items) < minimum:
+        raise ValueError(f"learning_guide.{label} 至少需要 {minimum} 项")
+    for item in items:
+        if any(not item.get(field) for field in fields):
+            raise ValueError(f"learning_guide.{label} 包含不完整内容")
+    return items
+
+
 def paths(value, limit: int) -> list[str]:
     result = []
     for raw in value[:limit] if isinstance(value, list) else []:
@@ -526,6 +821,20 @@ def normalize_reference(reference: str) -> str:
     while normalized.startswith("./"):
         normalized = normalized[2:]
     return normalized.lstrip("/")
+
+
+def resolve_file_reference(reference: str, candidates: list[str]) -> str:
+    """兼容 Codex 把入口路径写进说明句，返回最先提到的真实文件。"""
+    normalized = normalize_reference(reference)
+    if normalized in candidates:
+        return normalized
+    lowered = normalized.lower()
+    matches = []
+    for path in candidates:
+        index = lowered.find(path.lower())
+        if index >= 0:
+            matches.append((index, -len(path), path))
+    return min(matches)[2] if matches else ""
 
 
 def records(value, fields: tuple[str, ...], limit: int) -> list[dict]:
@@ -568,6 +877,12 @@ def normalize_language_stats(value) -> dict[str, int]:
 def nonnegative_int(value, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{field} 必须是非负整数")
+    return value
+
+
+def positive_int(value, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{field} 必须是正整数")
     return value
 
 

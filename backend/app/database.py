@@ -83,6 +83,11 @@ def _ensure_compatibility_columns() -> None:
             "ALTER TABLE portfolio_projects ADD COLUMN chapter_id INTEGER REFERENCES chapters(id)",
         ),
         (
+            "portfolio_projects",
+            "learning_count",
+            "ALTER TABLE portfolio_projects ADD COLUMN learning_count INTEGER NOT NULL DEFAULT 0",
+        ),
+        (
             "portfolio_project_showcases",
             "demo_video_url",
             "ALTER TABLE portfolio_project_showcases ADD COLUMN demo_video_url VARCHAR(500)",

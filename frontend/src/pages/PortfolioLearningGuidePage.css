@@ -1,0 +1,30 @@
+.planning-guide-page { max-width: 980px; }
+.planning-guide-hero { background: linear-gradient(135deg, #31566c, #4f7f83); }
+.planning-regenerate { margin-top: 18px; color: #31566c; background: #fff; }
+.planning-reference-section, .planning-outcomes, .optional-source-learning { margin-top: 18px; padding: 30px; background: #fff; border: 1px solid #e5e8f0; border-radius: 16px; }
+.planning-reference-section header small, .optional-source-learning > small { color: #4d7e76; font-size: .7rem; font-weight: 700; letter-spacing: .08em; }
+.planning-reference-section h3, .optional-source-learning h2 { margin: 6px 0 13px; color: #303850; }
+.reference-boundary { padding: 12px 14px; color: #725d27; font-size: .8rem; line-height: 1.7; background: #fff8e8; border-radius: 8px; }
+.reference-result-list { display: grid; gap: 11px; margin-top: 15px; }
+.reference-result-list article { display: grid; gap: 7px; padding: 17px; background: #f7f9fb; border-radius: 10px; }
+.reference-result-list h4 { margin: 0; color: #38445c; }
+.reference-result-list p { margin: 0; color: #626978; font-size: .8rem; line-height: 1.7; }
+.reference-result-list a { color: #4d6aa8; font-size: .76rem; }
+.reference-result-list small { color: #9297a3; }
+.reference-result-list strong { color: #9a572f; font-size: .74rem; }
+.reference-empty { margin-top: 14px; padding: 20px; color: #727986; background: #f7f8fa; border-radius: 9px; }
+.planning-outcomes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
+.planning-outcomes h3 { color: #38445c; }
+.planning-outcomes li { margin-bottom: 8px; color: #626978; font-size: .82rem; line-height: 1.7; }
+.optional-source-learning > p { color: #6d7380; line-height: 1.75; }
+.optional-source-learning > div { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }
+.optional-source-learning article { padding: 18px; background: #f7f9fb; border-radius: 11px; }
+.optional-source-learning article p { min-height: 72px; color: #646b78; font-size: .8rem; line-height: 1.7; }
+.guide-learning-completion { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 18px; padding: 26px 30px; background: linear-gradient(135deg, #eef8f1, #f7fbff); border: 1px solid #cfe8d7; border-radius: 16px; }
+.guide-learning-completion small { color: #25834a; font-size: .7rem; font-weight: 700; letter-spacing: .08em; }
+.guide-learning-completion h2 { margin: 6px 0 8px; color: #2f4b3a; }
+.guide-learning-completion p { margin: 0; color: #66756c; font-size: .82rem; line-height: 1.7; }
+.guide-learning-completion .btn { flex-shrink: 0; min-width: 150px; }
+.guide-learning-feedback { min-height: 1.4em; margin-top: 6px !important; color: #25834a !important; font-weight: 600; }
+@media (max-width: 720px) { .planning-reference-section, .planning-outcomes, .optional-source-learning { padding: 22px; } .planning-outcomes, .optional-source-learning > div { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .guide-learning-completion { align-items: stretch; flex-direction: column; padding: 22px; } .guide-learning-completion .btn { width: 100%; } }

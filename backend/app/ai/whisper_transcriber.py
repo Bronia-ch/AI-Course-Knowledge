@@ -35,17 +35,26 @@ class TranscriberConfig:
         device: str = "cuda",
         compute_type: str = "int8",
         beam_size: int = 5,
+        language: str | None = "zh",
+        vad_filter: bool = True,
+        condition_on_previous_text: bool = False,
+        no_speech_threshold: float = 0.6,
     ):
         self.model_size = model_size
         self.device = device
         self.compute_type = compute_type
         self.beam_size = beam_size
+        self.language = language or None
+        self.vad_filter = vad_filter
+        self.condition_on_previous_text = condition_on_previous_text
+        self.no_speech_threshold = no_speech_threshold
 
     def __repr__(self) -> str:
         return (
             f"TranscriberConfig(model={self.model_size}, "
             f"device={self.device}, compute={self.compute_type}, "
-            f"beam={self.beam_size})"
+            f"beam={self.beam_size}, language={self.language}, "
+            f"vad={self.vad_filter}, previous_text={self.condition_on_previous_text})"
         )
 
 
@@ -68,12 +77,20 @@ class WhisperTranscriber:
         device: str = "cuda",
         compute_type: str = "int8",
         beam_size: int = 5,
+        language: str | None = "zh",
+        vad_filter: bool = True,
+        condition_on_previous_text: bool = False,
+        no_speech_threshold: float = 0.6,
     ):
         self.config = TranscriberConfig(
             model_size=model_size,
             device=device,
             compute_type=compute_type,
             beam_size=beam_size,
+            language=language,
+            vad_filter=vad_filter,
+            condition_on_previous_text=condition_on_previous_text,
+            no_speech_threshold=no_speech_threshold,
         )
         self._model: Optional[WhisperModel] = None
         self._load_lock = Lock()
@@ -130,8 +147,12 @@ class WhisperTranscriber:
         segments, info = model.transcribe(
             audio_path,
             beam_size=self.config.beam_size,
-            language=None,           # auto-detect
-            vad_filter=False,        # V1 关闭 VAD，保留完整转写
+            language=self.config.language,
+            vad_filter=self.config.vad_filter,
+            vad_parameters={"min_silence_duration_ms": 1000},
+            condition_on_previous_text=self.config.condition_on_previous_text,
+            temperature=0.0,
+            no_speech_threshold=self.config.no_speech_threshold,
         )
 
         logger.info(
@@ -149,5 +170,9 @@ class WhisperTranscriber:
             "device": self.config.device,
             "compute_type": self.config.compute_type,
             "beam_size": self.config.beam_size,
+            "language": self.config.language,
+            "vad_filter": self.config.vad_filter,
+            "condition_on_previous_text": self.config.condition_on_previous_text,
+            "no_speech_threshold": self.config.no_speech_threshold,
             "loaded": self._model is not None,
         }

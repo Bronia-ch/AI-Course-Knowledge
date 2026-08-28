@@ -110,9 +110,9 @@ export default function PortfolioExecutionPage() {
 
       <header className="execution-hero">
         <div>
-          <small>AI DEVELOPMENT HANDOFF</small>
-          <h1>AI 项目执行包</h1>
-          <p>把「{project.title}」的完整开发信息交给 Codex 等开发型 AI。</p>
+          <small>OPTIONAL SOURCE LEARNING</small>
+          <h1>源码学习与项目开发（可选）</h1>
+          <p>只有当你想亲自运行项目或深入学习真实源码时，才需要把「{project.title}」交给 Codex 开发。</p>
         </div>
         <button className="btn btn-primary" disabled={generating} onClick={generate}>
           {generating ? "AI 正在生成，请稍候..." : executionPackage ? "重新生成执行包" : "生成执行包"}
@@ -120,6 +120,11 @@ export default function PortfolioExecutionPage() {
       </header>
 
       {error && <div className="execution-error">{error}</div>}
+
+      <section className="execution-optional-note">
+        <strong>这不是默认学习步骤</strong>
+        <p>如果你只想理解作品，请返回<Link to={`/portfolio-projects/${project.id}/learn`}>作品学习指南</Link>。当前页面会真正生成开发资料，之后才可能得到属于当前作品的源码、模型和测试结果。</p>
+      </section>
 
       <section className="execution-next-steps">
         <header>

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ScrollPositionManager from "./components/ScrollPositionManager";
 import CourseListPage from "./pages/CourseListPage";
 import CourseDetailPage from "./pages/CourseDetailPage";
 import LessonDetailPage from "./pages/LessonDetailPage";
@@ -8,6 +9,7 @@ import PortfolioShowcasePage from "./pages/PortfolioShowcasePage";
 import PortfolioExecutionPage from "./pages/PortfolioExecutionPage";
 import PortfolioCodeAnalysisPage from "./pages/PortfolioCodeAnalysisPage";
 import PortfolioOverviewPage from "./pages/PortfolioOverviewPage";
+import PortfolioLearningGuidePage from "./pages/PortfolioLearningGuidePage";
 import "./App.css";
 
 /**
@@ -19,6 +21,7 @@ import "./App.css";
  * /portfolio-projects → 我的作品项目列表
  * /portfolio-overview → 个人能力作品集总览
  * /portfolio-projects/:id → 作品项目计划详情
+ * /portfolio-projects/:id/learn → 无需先开发源码的作品学习指南
  * /portfolio-projects/:id/showcase → 面试展示页
  * /portfolio-projects/:id/execution → AI 项目执行包
  * /portfolio-projects/:id/code-analysis → 完成项目真实代码讲解
@@ -27,6 +30,7 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app">
+        <ScrollPositionManager />
         <Routes>
           <Route path="/" element={<CourseListPage />} />
           <Route path="/courses/:id" element={<CourseDetailPage />} />
@@ -39,6 +43,10 @@ function App() {
           <Route
             path="/portfolio-projects/:id"
             element={<PortfolioProjectPage />}
+          />
+          <Route
+            path="/portfolio-projects/:id/learn"
+            element={<PortfolioLearningGuidePage />}
           />
           <Route
             path="/portfolio-projects/:id/showcase"

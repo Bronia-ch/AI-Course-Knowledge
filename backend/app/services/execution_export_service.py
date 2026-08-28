@@ -72,6 +72,7 @@ def build_codex_handoff_archive(db: Session, project_id: int) -> bytes:
 
 
 def _build_handoff_files(project, package: dict, knowledge_points: list) -> dict:
+    task_titles = [task.title.strip() for task in project.tasks]
     start_prompt = (
         "请先完整阅读 START_HERE.md、AGENTS.md、PROJECT_SPEC.md、"
         "ARCHITECTURE.md、IMPLEMENTATION_PLAN.md 和 TEST_AND_ACCEPTANCE.md。"
@@ -83,7 +84,7 @@ def _build_handoff_files(project, package: dict, knowledge_points: list) -> dict
         "AGENTS.md": _agents_instructions(),
         "PROJECT_SPEC.md": _project_spec(project.title, package),
         "ARCHITECTURE.md": _architecture(package),
-        "IMPLEMENTATION_PLAN.md": _implementation_plan(package),
+        "IMPLEMENTATION_PLAN.md": _implementation_plan(project, package),
         "TEST_AND_ACCEPTANCE.md": _test_and_acceptance(package),
         "COURSE_KNOWLEDGE.md": _course_knowledge(project, knowledge_points),
         "CODEX_MASTER_PROMPT.md": _document(
@@ -98,9 +99,11 @@ def _build_handoff_files(project, package: dict, knowledge_points: list) -> dict
             "项目讲解提示词",
             package["explanation_prompt"],
         ),
-        "CODEX_ANALYSIS_REQUEST.md": analysis_request(project.id),
+        "CODEX_ANALYSIS_REQUEST.md": analysis_request(project.id, task_titles),
         "ANALYSIS_RESULT_SCHEMA.json": json.dumps(
-            analysis_result_schema(project.id), ensure_ascii=False, indent=2
+            analysis_result_schema(project.id, task_titles),
+            ensure_ascii=False,
+            indent=2,
         ),
         "README_REQUIREMENTS.md": _list_document(
             "README 编写要求",
@@ -210,8 +213,19 @@ def _architecture(package: dict) -> str:
     return "\n".join(lines)
 
 
-def _implementation_plan(package: dict) -> str:
-    lines = ["# 分阶段实施计划", ""]
+def _implementation_plan(project, package: dict) -> str:
+    lines = [
+        "# 分阶段实施计划",
+        "",
+        "## JSON 回传任务名称",
+        "",
+        "生成 `portfolio_analysis_result.json` 时，"
+        "`implementation_status.task_results[].task_title` "
+        "必须逐字使用下列名称，不要添加“阶段 1”等前缀：",
+        "",
+        *[f"- `{task.title.strip()}`" for task in project.tasks],
+        "",
+    ]
     for index, phase in enumerate(package["implementation_phases"], start=1):
         lines.extend([
             f"## 阶段 {index}：{phase.get('title', '')}",

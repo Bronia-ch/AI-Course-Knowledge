@@ -45,6 +45,9 @@ def opportunity_to_dict(opportunity: PortfolioOpportunity) -> dict:
         "portfolio_project_id": opportunity.portfolio_project.id
         if opportunity.portfolio_project
         else None,
+        "learning_count": int(opportunity.portfolio_project.learning_count or 0)
+        if opportunity.portfolio_project
+        else 0,
     }
 
 
@@ -236,6 +239,7 @@ def portfolio_project_to_dict(project: PortfolioProject) -> dict:
         "interview_pitch": project.interview_pitch,
         "estimated_effort": project.estimated_effort,
         "status": effective_status,
+        "learning_count": int(project.learning_count or 0),
         "created_at": project.created_at,
         "updated_at": project.updated_at,
         "task_count": task_count,
@@ -245,6 +249,7 @@ def portfolio_project_to_dict(project: PortfolioProject) -> dict:
             1,
         ) if task_count else 0.0,
         "implementation_status": implementation_status,
+        "concept_guide_available": getattr(project, "concept_guide", None) is not None,
         "tasks": [
             {
                 "id": task.id,

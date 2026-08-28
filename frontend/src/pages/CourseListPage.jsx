@@ -4,6 +4,7 @@ import { courseAPI } from "../services/api";
 import CourseCard from "../components/CourseCard";
 import LearningStats from "../components/LearningStats";
 import Modal from "../components/Modal";
+import BackToTopButton from "../components/BackToTopButton";
 import "./CourseListPage.css";
 
 /**
@@ -116,6 +117,8 @@ export default function CourseListPage() {
           ))}
         </div>
       )}
+
+      <BackToTopButton />
 
       {/* 创建/编辑弹窗 */}
       <Modal

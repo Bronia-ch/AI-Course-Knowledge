@@ -18,6 +18,11 @@
   display: flex;
   gap: 7px;
 }
+.portfolio-project-links .primary-learning-link {
+  color: #fff;
+  background: #526ac0;
+  border-color: #526ac0;
+}
 
 .portfolio-project-links a {
   padding: 7px 11px;

@@ -201,6 +201,10 @@ export const portfolioAPI = {
     request("POST", `/portfolio-opportunities/${opportunityId}/create-project`),
   getProject: (projectId) =>
     request("GET", `/portfolio-projects/${projectId}`),
+  completeLearning: (projectId) =>
+    request("POST", `/portfolio-projects/${projectId}/learning-completions`),
+  getConceptGuide: (projectId) =>
+    request("GET", `/portfolio-projects/${projectId}/concept-guide`),
   updateTask: (taskId, status) =>
     request("PATCH", `/portfolio-project-tasks/${taskId}`, { status }),
   updateShowcase: (projectId, data) =>

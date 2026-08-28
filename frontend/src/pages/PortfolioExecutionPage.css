@@ -2,6 +2,10 @@
   max-width: 1120px;
   padding-bottom: 60px;
 }
+.execution-optional-note { margin: 14px 0; padding: 15px 18px; color: #5f6674; background: #fff8e8; border: 1px solid #f0dfae; border-radius: 10px; }
+.execution-optional-note strong { color: #765c20; }
+.execution-optional-note p { margin: 5px 0 0; font-size: .8rem; line-height: 1.7; }
+.execution-optional-note a { margin: 0 4px; color: #536ab4; }
 
 .execution-breadcrumb {
   display: flex;

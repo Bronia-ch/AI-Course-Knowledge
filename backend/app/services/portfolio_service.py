@@ -195,6 +195,7 @@ def get_portfolio_project(
             selectinload(PortfolioProject.execution_package),
             selectinload(PortfolioProject.code_analysis),
             selectinload(PortfolioProject.codex_analysis_metadata),
+            selectinload(PortfolioProject.concept_guide),
             selectinload(PortfolioProject.chapter).selectinload(Chapter.lessons),
         )
         .filter(PortfolioProject.id == project_id)
@@ -235,11 +236,40 @@ def list_portfolio_projects(db: Session) -> list[PortfolioProject]:
             selectinload(PortfolioProject.execution_package),
             selectinload(PortfolioProject.code_analysis),
             selectinload(PortfolioProject.codex_analysis_metadata),
+            selectinload(PortfolioProject.concept_guide),
             selectinload(PortfolioProject.chapter).selectinload(Chapter.lessons),
         )
         .order_by(PortfolioProject.updated_at.desc(), PortfolioProject.id.desc())
         .all()
     )
+
+
+def increment_portfolio_learning_count(
+    db: Session,
+    project_id: int,
+) -> PortfolioProject | None:
+    """原子累加作品学习次数，并返回最新项目数据。"""
+    updated_count = (
+        db.query(PortfolioProject)
+        .filter(PortfolioProject.id == project_id)
+        .update(
+            {
+                PortfolioProject.learning_count:
+                    PortfolioProject.learning_count + 1,
+                PortfolioProject.updated_at: utc_now(),
+            },
+            synchronize_session=False,
+        )
+    )
+    if not updated_count:
+        db.rollback()
+        return None
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return get_portfolio_project(db, project_id)
 
 
 def build_portfolio_overview(db: Session) -> dict:
@@ -611,12 +641,10 @@ def generate_portfolio_execution_package(
     return get_portfolio_execution_package(db, project.id)
 
 
-def create_portfolio_project(
+def _get_project_creation_source(
     db: Session,
     opportunity_id: int,
-    client: DeepSeekClient | None = None,
-) -> PortfolioProject:
-    """将作品机会转换为正式项目蓝图；已创建时直接返回。"""
+) -> tuple[PortfolioOpportunity, str, list[KnowledgePoint]]:
     opportunity = (
         db.query(PortfolioOpportunity)
         .options(selectinload(PortfolioOpportunity.portfolio_project))
@@ -625,8 +653,6 @@ def create_portfolio_project(
     )
     if not opportunity:
         raise ValueError("作品机会不存在")
-    if opportunity.portfolio_project:
-        return get_portfolio_project(db, opportunity.portfolio_project.id)
 
     if opportunity.chapter_id:
         _, _, transcript_text, points, _ = _chapter_source_data(
@@ -647,23 +673,15 @@ def create_portfolio_project(
         if not segments or not points:
             raise ValueError("来源课节缺少转写或知识点数据")
         transcript_text = format_transcript_context(segments)
+    return opportunity, transcript_text, points
 
-    opportunity_data = opportunity_to_dict(opportunity)
-    opportunity_data.pop("portfolio_project_id", None)
-    point_data = [
-        {
-            "title": point.title,
-            "description": point.description,
-            "importance": point.importance,
-        }
-        for point in points
-    ]
-    ai_client = client or DeepSeekClient()
-    generated = ai_client.create_portfolio_project_blueprint(
-        opportunity_data,
-        transcript_text,
-        point_data,
-    )
+
+def _persist_portfolio_project(
+    db: Session,
+    opportunity: PortfolioOpportunity,
+    generated: dict,
+    points: list[KnowledgePoint],
+) -> PortfolioProject:
     blueprint = _normalize_project_blueprint(
         generated,
         opportunity,
@@ -691,5 +709,49 @@ def create_portfolio_project(
     except Exception:
         db.rollback()
         raise
-
     return get_portfolio_project(db, project.id)
+
+
+def create_portfolio_project(
+    db: Session,
+    opportunity_id: int,
+    client: DeepSeekClient | None = None,
+) -> PortfolioProject:
+    """通过 DeepSeek 将作品机会转换为正式项目蓝图。"""
+    opportunity, transcript_text, points = _get_project_creation_source(
+        db, opportunity_id
+    )
+    if opportunity.portfolio_project:
+        return get_portfolio_project(db, opportunity.portfolio_project.id)
+
+    opportunity_data = opportunity_to_dict(opportunity)
+    opportunity_data.pop("portfolio_project_id", None)
+    point_data = [
+        {
+            "title": point.title,
+            "description": point.description,
+            "importance": point.importance,
+        }
+        for point in points
+    ]
+    ai_client = client or DeepSeekClient()
+    generated = ai_client.create_portfolio_project_blueprint(
+        opportunity_data,
+        transcript_text,
+        point_data,
+    )
+    return _persist_portfolio_project(db, opportunity, generated, points)
+
+
+def import_codex_portfolio_project(
+    db: Session,
+    opportunity_id: int,
+    blueprint: dict,
+) -> PortfolioProject:
+    """保存 Codex 生成的项目蓝图，全程不调用 DeepSeek。"""
+    opportunity, _transcript_text, points = _get_project_creation_source(
+        db, opportunity_id
+    )
+    if opportunity.portfolio_project:
+        return get_portfolio_project(db, opportunity.portfolio_project.id)
+    return _persist_portfolio_project(db, opportunity, blueprint, points)

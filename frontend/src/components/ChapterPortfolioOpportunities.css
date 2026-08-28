@@ -112,6 +112,12 @@
   background: #e9f8ee;
 }
 
+.chapter-portfolio-title span.chapter-portfolio-learning-count {
+  color: #8a5d19;
+  font-weight: 700;
+  background: #fff4d8;
+}
+
 .chapter-portfolio-title h4 {
   margin: 8px 0;
   color: #30364b;

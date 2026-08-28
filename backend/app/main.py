@@ -40,8 +40,10 @@ _cublas_dll_path = os.path.join(
     "venv", "Lib", "site-packages", "nvidia", "cublas", "bin"
 )
 if os.path.isdir(_cublas_dll_path):
-    os.add_dll_directory(_cublas_dll_path)
+    _cublas_dll_handle = os.add_dll_directory(_cublas_dll_path)
     os.environ["PATH"] = _cublas_dll_path + ";" + os.environ.get("PATH", "")
+else:
+    _cublas_dll_handle = None
 
 # 确保上传目录存在（应用启动时创建）
 os.makedirs(UPLOAD_DIR / "audio", exist_ok=True)
@@ -69,6 +71,10 @@ async def lifespan(app: FastAPI):
             device=settings.WHISPER_DEVICE,
             compute_type=settings.WHISPER_COMPUTE_TYPE,
             beam_size=settings.WHISPER_BEAM_SIZE,
+            language=settings.WHISPER_LANGUAGE,
+            vad_filter=settings.WHISPER_VAD_FILTER,
+            condition_on_previous_text=settings.WHISPER_CONDITION_ON_PREVIOUS_TEXT,
+            no_speech_threshold=settings.WHISPER_NO_SPEECH_THRESHOLD,
         )
         logger.info("Whisper 转录器已初始化，模型将在首次转录时加载")
     except Exception as e:

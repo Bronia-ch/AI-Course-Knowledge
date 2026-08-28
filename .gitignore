@@ -18,6 +18,9 @@ dist/
 
 # 完成项目源码归档（仅供本地真实代码分析）
 backend/data/portfolio_submissions/
+backend/data/concept-guide-regeneration-state.json
+backend/data/concept-guide-audit.json
+backend/data/concept-guide-opening-backup-course-*.json
 
 # 用户上传与运行日志（已有被 Git 跟踪的文件需另行确认后处理）
 backend/uploads/

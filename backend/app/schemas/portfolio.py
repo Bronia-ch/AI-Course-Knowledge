@@ -23,6 +23,7 @@ class PortfolioOpportunityResponse(BaseModel):
     recommended: bool
     created_at: datetime
     portfolio_project_id: int | None = None
+    learning_count: int = 0
 
 
 class PortfolioProjectTaskResponse(BaseModel):
@@ -36,6 +37,11 @@ class PortfolioProjectTaskResponse(BaseModel):
 
 class PortfolioProjectTaskUpdate(BaseModel):
     status: Literal["pending", "in_progress", "completed"]
+
+
+class PortfolioLearningCompletionResponse(BaseModel):
+    project_id: int
+    learning_count: int
 
 
 class PortfolioShowcaseUpdate(BaseModel):
@@ -135,6 +141,37 @@ class PortfolioCodeAnalysisResponse(BaseModel):
     updated_at: datetime
 
 
+class PortfolioConceptGuideResponse(BaseModel):
+    id: int
+    project_id: int
+    content: dict
+    reference_sources: list[dict] = Field(default_factory=list)
+    reference_status: Literal["found", "not_found", "search_failed"]
+    created_at: datetime
+    updated_at: datetime
+
+
+class PortfolioCodexProjectBlueprintImport(BaseModel):
+    title: str
+    objective: str
+    use_case: str
+    architecture: str
+    technology_stack: list[str] = Field(default_factory=list)
+    core_features: list[str] = Field(default_factory=list)
+    knowledge_points: list[str] = Field(default_factory=list)
+    deliverables: list[str] = Field(default_factory=list)
+    acceptance_criteria: list[str] = Field(default_factory=list)
+    interview_pitch: str
+    estimated_effort: str
+    tasks: list[dict] = Field(default_factory=list)
+
+
+class PortfolioCodexConceptGuideImport(BaseModel):
+    content: dict
+    reference_sources: list[dict] = Field(default_factory=list)
+    reference_status: Literal["found", "not_found", "search_failed"] = "not_found"
+
+
 class PortfolioProjectSubmissionResponse(BaseModel):
     id: int
     project_id: int
@@ -195,12 +232,14 @@ class PortfolioProjectResponse(BaseModel):
     interview_pitch: str
     estimated_effort: str
     status: str
+    learning_count: int = 0
     created_at: datetime
     updated_at: datetime
     task_count: int
     completed_task_count: int
     progress_percent: float
     implementation_status: dict = Field(default_factory=dict)
+    concept_guide_available: bool = False
     tasks: list[PortfolioProjectTaskResponse]
     showcase: PortfolioShowcaseResponse
     evidences: list[PortfolioEvidenceResponse]

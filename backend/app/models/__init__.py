@@ -18,6 +18,7 @@ from .models import (
     PortfolioProjectSubmission,
     PortfolioCodexAnalysisMetadata,
     PortfolioLearningGuide,
+    PortfolioConceptGuide,
     KnowledgeProjectRelation,
     LessonProgress,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "PortfolioProjectSubmission",
     "PortfolioCodexAnalysisMetadata",
     "PortfolioLearningGuide",
+    "PortfolioConceptGuide",
     "KnowledgeProjectRelation",
     "LessonProgress",
 ]

@@ -12,12 +12,16 @@ from ..schemas.portfolio import (
     PortfolioOpportunityResponse,
     PortfolioProjectResponse,
     PortfolioProjectTaskUpdate,
+    PortfolioLearningCompletionResponse,
     PortfolioShowcaseUpdate,
     PortfolioEvidenceCreate,
     PortfolioExecutionPackageResponse,
     PortfolioCodeAnalysisResponse,
     PortfolioCodexAnalysisImport,
     PortfolioOverviewResponse,
+    PortfolioConceptGuideResponse,
+    PortfolioCodexProjectBlueprintImport,
+    PortfolioCodexConceptGuideImport,
 )
 from ..services import course_service
 from ..services.portfolio_service import (
@@ -36,12 +40,19 @@ from ..services.portfolio_service import (
     get_portfolio_execution_package,
     portfolio_execution_package_to_dict,
     build_portfolio_overview,
+    import_codex_portfolio_project,
+    increment_portfolio_learning_count,
 )
 from ..services.execution_export_service import build_codex_handoff_archive
 from ..services.codex_analysis_service import (
     code_analysis_to_dict,
     get_codex_code_analysis,
     import_codex_analysis,
+)
+from ..services.portfolio_learning_service import (
+    concept_guide_to_dict,
+    get_concept_guide,
+    import_codex_concept_guide,
 )
 
 logger = logging.getLogger(__name__)
@@ -129,6 +140,28 @@ def create_project_from_opportunity(
     return portfolio_project_to_dict(project)
 
 
+@router.post(
+    "/api/portfolio-opportunities/{opportunity_id}/create-project/codex-import",
+    response_model=PortfolioProjectResponse,
+)
+def create_project_from_codex_blueprint(
+    opportunity_id: int,
+    payload: PortfolioCodexProjectBlueprintImport,
+    db: Session = Depends(get_db),
+):
+    """校验并保存 Codex 生成的作品蓝图，不调用 DeepSeek。"""
+    try:
+        project = import_codex_portfolio_project(
+            db, opportunity_id, payload.model_dump()
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Codex 作品蓝图导入失败: opportunity_id=%d", opportunity_id)
+        raise HTTPException(status_code=500, detail="Codex 作品蓝图导入失败") from exc
+    return portfolio_project_to_dict(project)
+
+
 @router.get(
     "/api/portfolio-projects/{project_id}",
     response_model=PortfolioProjectResponse,
@@ -139,6 +172,78 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail="作品项目不存在")
     return portfolio_project_to_dict(project)
+
+
+@router.post(
+    "/api/portfolio-projects/{project_id}/learning-completions",
+    response_model=PortfolioLearningCompletionResponse,
+)
+def complete_project_learning(
+    project_id: int,
+    db: Session = Depends(get_db),
+):
+    """记录用户完成一次作品学习指南。"""
+    project = increment_portfolio_learning_count(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="作品项目不存在")
+    return {
+        "project_id": project.id,
+        "learning_count": int(project.learning_count or 0),
+    }
+
+
+@router.get(
+    "/api/portfolio-projects/{project_id}/concept-guide",
+    response_model=PortfolioConceptGuideResponse | None,
+)
+def get_project_concept_guide(
+    project_id: int,
+    db: Session = Depends(get_db),
+):
+    """查询无需真实开发即可阅读的作品学习指南。"""
+    if not get_portfolio_project(db, project_id):
+        raise HTTPException(status_code=404, detail="作品项目不存在")
+    guide = get_concept_guide(db, project_id)
+    return concept_guide_to_dict(guide) if guide else None
+
+
+@router.post(
+    "/api/portfolio-projects/{project_id}/concept-guide/generate",
+    response_model=PortfolioConceptGuideResponse,
+)
+def create_project_concept_guide(
+    project_id: int,
+    db: Session = Depends(get_db),
+):
+    """停止网页端 DeepSeek 生成，避免用户误触发产生模型费用。"""
+    if not get_portfolio_project(db, project_id):
+        raise HTTPException(status_code=404, detail="作品项目不存在")
+    raise HTTPException(
+        status_code=410,
+        detail="网页端自动生成已关闭。请在 Codex 对话中请求生成或更新作品学习指南。",
+    )
+
+
+@router.post(
+    "/api/portfolio-projects/{project_id}/concept-guide/codex-import",
+    response_model=PortfolioConceptGuideResponse,
+)
+def import_project_concept_guide_from_codex(
+    project_id: int,
+    payload: PortfolioCodexConceptGuideImport,
+    db: Session = Depends(get_db),
+):
+    """校验并保存 Codex 生成的零基础学习指南，不调用 DeepSeek。"""
+    try:
+        guide = import_codex_concept_guide(db, project_id, payload.model_dump())
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Codex 学习指南导入失败: project_id=%d", project_id)
+        raise HTTPException(status_code=500, detail="Codex 学习指南导入失败") from exc
+    return concept_guide_to_dict(guide)
 
 
 @router.patch(

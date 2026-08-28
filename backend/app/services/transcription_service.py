@@ -18,6 +18,7 @@ import os
 from sqlalchemy.orm import Session
 
 from . import upload_service
+from .transcription_quality import validate_transcription
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ def run_transcription(
         ]
         if not new_segments:
             raise ValueError("Whisper 未生成有效转录文本")
+        validate_transcription(new_segments)
 
         # ---- 4. 在同一事务中替换旧转录并更新课节 ----
         deleted = (

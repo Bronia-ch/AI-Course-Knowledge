@@ -13,6 +13,170 @@ function CodeLocations({ locations = [] }) {
   );
 }
 
+function sourceLines(source = "") {
+  const lines = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  if (lines.length > 1 && lines.at(-1) === "") lines.pop();
+  return lines;
+}
+
+function CodeLines({ source, startLine = 1, endLine }) {
+  const lines = sourceLines(source);
+  const finalLine = endLine || lines.length;
+  return (
+    <pre className="annotated-source-code"><code>{lines.slice(startLine - 1, finalLine).map((line, index) => (
+      <span className="annotated-code-line" key={`${startLine + index}-${line}`}>
+        <span className="annotated-line-number">{startLine + index}</span>
+        <span className="annotated-line-text">{line || " "}</span>
+      </span>
+    ))}</code></pre>
+  );
+}
+
+function AnnotationNote({ annotation }) {
+  return (
+    <aside className="source-annotation-note">
+      <small>第 {annotation.start_line}-{annotation.end_line} 行</small>
+      <h4>{annotation.title}</h4>
+      <p>{annotation.plain_explanation}</p>
+      <dl>
+        <div><dt>为什么需要</dt><dd>{annotation.why_needed}</dd></div>
+        <div><dt>输入和输出</dt><dd>{annotation.input_output}</dd></div>
+        <div><dt>前后怎样连起来</dt><dd>{annotation.connection}</dd></div>
+        <div><dt>课程知识</dt><dd>{annotation.course_knowledge}</dd></div>
+        <div className="annotation-warning"><dt>初学者注意</dt><dd>{annotation.beginner_warning}</dd></div>
+      </dl>
+    </aside>
+  );
+}
+
+function ModernLearningGuide({ guide, analysis, projectId }) {
+  const readingPaths = guide.code_map.reading_order.map((item) => item.path);
+  const orderedFiles = [
+    ...readingPaths.map((path) => guide.annotated_files.find((file) => file.path === path)).filter(Boolean),
+    ...guide.annotated_files.filter((file) => !readingPaths.includes(file.path)),
+  ];
+  const [selectedPath, setSelectedPath] = useState(guide.code_map.entry_point || orderedFiles[0]?.path);
+  const [showAnnotations, setShowAnnotations] = useState(true);
+  const selectedFile = orderedFiles.find((file) => file.path === selectedPath) || orderedFiles[0];
+  const storyParagraphs = guide.beginner_story.content.split(/\n{2,}/).filter(Boolean);
+  const supportingFiles = guide.source_inventory.filter((item) => item.category !== "annotated_source");
+  const hasBeginnerPath = Boolean(
+    guide.concept_ladder?.length
+    && guide.learning_flow?.length
+    && guide.story_sections?.length
+    && guide.self_checks?.length
+  );
+
+  useEffect(() => {
+    if (!orderedFiles.some((file) => file.path === selectedPath)) {
+      setSelectedPath(guide.code_map.entry_point || orderedFiles[0]?.path);
+    }
+  }, [guide, orderedFiles, selectedPath]);
+
+  return (
+    <>
+      <nav className="guide-section-nav modern-guide-nav">
+        <a href="#plain-story">先知道要做什么</a>
+        {hasBeginnerPath && <a href="#concept-ladder">从生活经验认识概念</a>}
+        {hasBeginnerPath && <a href="#learning-flow">走一遍完整流程</a>}
+        {hasBeginnerPath && <a href="#story-sections">一小步一小步学</a>}
+        <a href="#code-map">再看代码地图</a>
+        <a href="#annotated-source">最后读完整源码</a>
+      </nav>
+
+      <section className="plain-project-story" id="plain-story">
+        <span>第一部分 · 先不看代码</span>
+        <h2>{guide.beginner_story.title}</h2>
+        <p className="story-reading-goal">{guide.beginner_story.after_reading}</p>
+        <div className="continuous-story">{storyParagraphs.map((paragraph, index) => <p key={`${paragraph.slice(0, 20)}-${index}`}>{paragraph}</p>)}</div>
+
+        {hasBeginnerPath && <>
+          <section className="concept-ladder" id="concept-ladder">
+            <header><small>先建立直觉，再记专业名称</small><h3>第一次接触，只需要按顺序认识这些东西</h3><p>每次只增加一个新概念。先读日常语言，理解以后再看蓝色的专业名称。</p></header>
+            <ol>
+              {guide.concept_ladder.map((item, index) => <li key={`${item.term}-${index}`}>
+                <span className="concept-step">{index + 1}</span>
+                <article>
+                  <p className="concept-before-term">{item.before_term}</p>
+                  <div className="concept-name"><small>它的专业名称是</small><strong>{item.term}</strong></div>
+                  <p>{item.plain_explanation}</p>
+                  <blockquote><b>可以把它想成：</b>{item.analogy}</blockquote>
+                  <p><b>在这个项目里：</b>{item.project_role}</p>
+                  <p className="concept-remember">这一小步只要记住：{item.remember}</p>
+                </article>
+              </li>)}
+            </ol>
+          </section>
+
+          <section className="beginner-learning-flow" id="learning-flow">
+            <header><small>先看整条流水线</small><h3>一张图片是怎样一步步变成答案的</h3><p>暂时不用理解代码，只看事情发生的顺序。</p></header>
+            <ol>
+              {guide.learning_flow.map((item, index) => <li key={`${item.label}-${index}`}>
+                <span>{index + 1}</span>
+                <div><h4>{item.label}</h4><p><b>你看到：</b>{item.what_user_sees}</p><p><b>程序在做：</b>{item.what_program_does}</p><small>为什么需要：{item.why_needed}</small>{item.technical_terms.length > 0 && <div className="flow-terms">以后会看到这些名字：{item.technical_terms.map((term) => <code key={term}>{term}</code>)}</div>}</div>
+              </li>)}
+            </ol>
+          </section>
+
+          <section className="beginner-story-sections" id="story-sections">
+            <header><small>现在才逐步增加细节</small><h3>每一节只弄懂一件事</h3><p>不需要一次记住全部内容。能回答每节末尾的问题，就可以继续。</p></header>
+            {guide.story_sections.map((section, index) => <article key={`${section.title}-${index}`}>
+              <div className="story-section-heading"><span>{String(index + 1).padStart(2, "0")}</span><div><small>这一节学会：{section.learning_goal}</small><h4>{section.title}</h4></div></div>
+              <div className="story-section-content">{section.content.split(/\n{2,}/).filter(Boolean).map((paragraph, paragraphIndex) => <p key={`${paragraph.slice(0, 20)}-${paragraphIndex}`}>{paragraph}</p>)}</div>
+              {section.new_terms.length > 0 && <div className="new-terms"><b>这一节新认识：</b>{section.new_terms.map((term) => <span key={term}>{term}</span>)}</div>}
+              <CodeLocations locations={section.code_locations} />
+              <div className="section-checkpoint"><b>先别急着继续：</b>{section.checkpoint}</div>
+            </article>)}
+          </section>
+
+          <section className="beginner-self-checks">
+            <header><small>不用背定义</small><h3>用自己的话检查是否真的懂了</h3></header>
+            {guide.self_checks.map((item, index) => <details key={`${item.question}-${index}`}><summary>{index + 1}. {item.question}</summary><p className="self-check-hint">提示：{item.hint}</p><p><b>答案：</b>{item.answer}</p><small>理解它的意义：{item.why_it_matters}</small></details>)}
+          </section>
+        </>}
+
+        <div className="quick-verification">
+          <div><strong>听懂后马上验证</strong><p>{guide.beginner_story.quick_verification.action}</p></div>
+          <code>{guide.beginner_story.quick_verification.command}</code>
+          <p><b>预计看到：</b>{guide.beginner_story.quick_verification.expected_result}</p>
+          <small>这一步证明：{guide.beginner_story.quick_verification.what_it_proves}</small>
+        </div>
+      </section>
+
+      <section className="modern-code-map" id="code-map">
+        <header><span>第二部分</span><h2>先看清全貌，再进入文件</h2><p>{guide.code_map.overview}</p></header>
+        <div className="runtime-flow">
+          {guide.code_map.runtime_flow.map((step, index) => <div key={`${step}-${index}`}><span>{index + 1}</span><p>{step}</p></div>)}
+        </div>
+        <h3>推荐阅读顺序</h3>
+        <ol className="reading-order">
+          {guide.code_map.reading_order.map((item) => <li key={item.path}>
+            <button type="button" onClick={() => setSelectedPath(item.path)}><code>{item.path}</code><strong>{item.role}</strong><span>{item.why_read_now}</span></button>
+          </li>)}
+        </ol>
+        <details className="source-inventory"><summary>查看完整项目文件清单</summary><ul>{guide.source_inventory.map((item) => <li key={item.path} data-category={item.category}><code>{item.path}</code><span>{item.reason}</span></li>)}</ul></details>
+      </section>
+
+      <section className="annotated-source-section" id="annotated-source">
+        <header><span>第三部分</span><h2>在完整源码旁边，像老师一样逐段批注</h2><p>代码原文没有被改写。你可以跟着批注学，也可以切换到干净源码。</p></header>
+        <div className="source-reader">
+          <aside className="source-file-list">
+            <strong>全部人工源码</strong>
+            {orderedFiles.map((file, index) => <button className={file.path === selectedFile?.path ? "active" : ""} type="button" key={file.path} onClick={() => setSelectedPath(file.path)}><span>{index + 1}</span><code>{file.path}</code></button>)}
+            {supportingFiles.length > 0 && <small>{supportingFiles.length} 个辅助或排除文件已在上方清单说明。</small>}
+          </aside>
+          {selectedFile && <div className="source-file-viewer">
+            <div className="source-viewer-toolbar"><div><code>{selectedFile.path}</code><span>{selectedFile.role} · {selectedFile.language}</span></div><div><button className={showAnnotations ? "active" : ""} type="button" onClick={() => setShowAnnotations(true)}>跟着老师学</button><button className={!showAnnotations ? "active" : ""} type="button" onClick={() => setShowAnnotations(false)}>查看干净源码</button></div></div>
+            {showAnnotations ? <div className="annotated-code-blocks">{selectedFile.annotations.map((annotation) => <article key={`${annotation.start_line}-${annotation.end_line}`}><CodeLines source={selectedFile.source} startLine={annotation.start_line} endLine={annotation.end_line} /><AnnotationNote annotation={annotation} /></article>)}</div> : <CodeLines source={selectedFile.source} />}
+          </div>}
+        </div>
+      </section>
+
+      <footer className="guide-source-note">本指南由 Codex 基于真实项目工作区生成 · 源码指纹 {analysis.source_fingerprint.slice(0, 12)}… · 专业技术证据请查看<Link to={`/portfolio-projects/${projectId}/showcase`}>面试展示页</Link></footer>
+    </>
+  );
+}
+
 export default function PortfolioCodeAnalysisPage() {
   const { id } = useParams();
   const projectId = Number(id);
@@ -35,8 +199,8 @@ export default function PortfolioCodeAnalysisPage() {
 
   const readResultFile = async (file) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Codex 分析 JSON 不能超过 2 MB");
+    if (file.size > 12 * 1024 * 1024) {
+      setError("Codex 分析 JSON 不能超过 12 MB");
       return;
     }
     setResultText(await file.text());
@@ -61,6 +225,7 @@ export default function PortfolioCodeAnalysisPage() {
   if (!project) return <div className="error">{error || "作品项目不存在"}</div>;
 
   const guide = analysis?.learning_guide;
+  const hasAnnotatedSource = Boolean(guide?.beginner_story && guide?.code_map && guide?.annotated_files?.length);
 
   return (
     <main className="page beginner-guide-page">
@@ -98,7 +263,9 @@ export default function PortfolioCodeAnalysisPage() {
         </section>
       )}
 
-      {guide && (
+      {hasAnnotatedSource && <ModernLearningGuide guide={guide} analysis={analysis} projectId={project.id} />}
+
+      {guide && !hasAnnotatedSource && (
         <>
           <nav className="guide-section-nav">
             <a href="#overview">先看全貌</a><a href="#terms">必要概念</a><a href="#story">运行故事</a><a href="#chapters">跟着代码学</a><a href="#practice">亲手验证</a><a href="#summary">学习总结</a>

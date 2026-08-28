@@ -51,14 +51,15 @@ export default function ChapterPortfolioOpportunities({ chapterId, lessons = [] 
 
   const handleCreateProject = async (opportunity) => {
     if (opportunity.portfolio_project_id) {
-      navigate(`/portfolio-projects/${opportunity.portfolio_project_id}`);
+      navigate(`/portfolio-projects/${opportunity.portfolio_project_id}/learn`);
       return;
     }
     try {
       setCreatingId(opportunity.id);
       setError(null);
       const project = await portfolioAPI.createProject(opportunity.id);
-      navigate(`/portfolio-projects/${project.id}`);
+      await portfolioAPI.generateConceptGuide(project.id);
+      navigate(`/portfolio-projects/${project.id}/learn`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,7 +97,7 @@ export default function ChapterPortfolioOpportunities({ chapterId, lessons = [] 
           {opportunities.map((opportunity) => (
             <article className={`chapter-portfolio-card${opportunity.recommended ? " recommended" : ""}`} key={opportunity.id}>
               <div className="chapter-portfolio-title">
-                <div><span>{projectTypeLabels[opportunity.project_type]}</span>{opportunity.recommended && <strong>推荐作品</strong>}</div>
+                <div><span>{projectTypeLabels[opportunity.project_type]}</span>{opportunity.recommended && <strong>推荐作品</strong>}{opportunity.learning_count > 0 && <span className="chapter-portfolio-learning-count">已学习 {opportunity.learning_count} 次</span>}</div>
                 <h4>{opportunity.title}</h4>
               </div>
               <p className="chapter-portfolio-ability"><b>能力证明：</b>{opportunity.ability_claim}</p>
@@ -105,7 +106,7 @@ export default function ChapterPortfolioOpportunities({ chapterId, lessons = [] 
               <div className="chapter-portfolio-section"><b>覆盖知识</b><div className="chapter-portfolio-tags">{opportunity.knowledge_points.map((point) => <span key={point}>{point}</span>)}</div></div>
               <div className="chapter-portfolio-section"><b>核心功能</b><ul>{opportunity.core_features.map((feature) => <li key={feature}>{feature}</li>)}</ul></div>
               <div className="chapter-portfolio-value"><div><b>面试价值</b><p>{opportunity.interview_value}</p></div><span>{opportunity.estimated_effort}</span></div>
-              <div className="chapter-portfolio-actions"><button className="btn btn-primary btn-sm" onClick={() => handleCreateProject(opportunity)} disabled={creatingId === opportunity.id}>{creatingId === opportunity.id ? "正在规划..." : opportunity.portfolio_project_id ? "查看项目计划" : "转为作品项目"}</button></div>
+              <div className="chapter-portfolio-actions"><button className="btn btn-primary btn-sm" onClick={() => handleCreateProject(opportunity)} disabled={creatingId === opportunity.id}>{creatingId === opportunity.id ? "正在生成学习指南..." : opportunity.portfolio_project_id ? "查看作品学习指南" : "转为作品并学习"}</button></div>
             </article>
           ))}
         </div>

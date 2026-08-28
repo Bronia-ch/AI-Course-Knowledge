@@ -1,0 +1,63 @@
+.back-to-top {
+  position: fixed;
+  right: max(24px, calc((100vw - 1216px) / 2));
+  bottom: 40px;
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 15px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #667eea;
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(73, 91, 190, 0.28);
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.back-to-top:hover {
+  background: #5368d4;
+  box-shadow: 0 10px 28px rgba(73, 91, 190, 0.36);
+  transform: translateY(-2px);
+}
+
+.back-to-top:disabled {
+  color: #9298aa;
+  background: #e5e7ee;
+  box-shadow: 0 4px 14px rgba(70, 76, 96, 0.12);
+  cursor: default;
+}
+
+.back-to-top:disabled:hover {
+  background: #e5e7ee;
+  box-shadow: 0 4px 14px rgba(70, 76, 96, 0.12);
+  transform: none;
+}
+
+.back-to-top:focus-visible {
+  outline: 3px solid rgba(102, 126, 234, 0.3);
+  outline-offset: 3px;
+}
+
+.back-to-top-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media (max-width: 1240px) {
+  .back-to-top {
+    right: 16px;
+    bottom: 20px;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+  }
+
+  .back-to-top-label {
+    display: none;
+  }
+}
